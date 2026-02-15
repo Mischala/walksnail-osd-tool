@@ -69,11 +69,7 @@ impl OsdFile {
 
             if let Some(pos) = text.find("INAV VERSION:") {
                 let version_part = text[pos + 13..].trim_start();
-                let version = version_part
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or_default()
-                    .to_string();
+                let version = version_part.split_whitespace().next().unwrap_or_default().to_string();
                 if !version.is_empty() {
                     return Some(version);
                 }

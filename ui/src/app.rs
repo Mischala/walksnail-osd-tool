@@ -50,6 +50,7 @@ pub struct WalksnailOsdTool {
     pub app_version: String,
     pub target: String,
     pub userfont_path: PathBuf,
+    pub batch_processing: bool,
 }
 
 impl WalksnailOsdTool {
@@ -121,6 +122,7 @@ impl WalksnailOsdTool {
             app_version,
             target,
             userfont_path,
+            batch_processing: saved_settings.batch_processing,
             ..Default::default()
         }
     }
@@ -298,6 +300,13 @@ impl WalksnailOsdTool {
                 }
                 self.render_status.update_from_ffmpeg_message(message, video_info)
             }
+
+            if matches!(self.render_status.status, crate::render_status::Status::Completed)
+                && self.batch_processing
+                && self.load_next_file()
+            {
+                self.start_render_process();
+            }
         }
     }
 
@@ -399,5 +408,78 @@ impl WalksnailOsdTool {
                     });
             }
         }
+    }
+
+    pub fn start_render_process(&mut self) {
+        tracing::info!("Starting render process");
+        self.render_status.start_render();
+        if let (Some(video_path), Some(osd_file), Some(font_file), Some(video_info)) =
+            (&self.video_file, &self.osd_file, &self.font_file, &self.video_info)
+        {
+            self.osd_options.osd_playback_speed_factor = if self.osd_options.adjust_playback_speed {
+                let video_duration = video_info.duration;
+                let osd_duration = osd_file.duration;
+                video_duration.as_secs_f32() / osd_duration.as_secs_f32()
+            } else {
+                1.0
+            };
+            match backend::ffmpeg::start_video_render(
+                &self.dependencies.ffmpeg_path,
+                video_path,
+                &crate::util::get_output_video_path(video_path),
+                osd_file.frames.clone(),
+                self.srt_file.as_ref().map(|s| s.frames.clone()).unwrap_or_default(),
+                font_file.clone(),
+                self.srt_font.as_ref().unwrap().clone(),
+                &self.osd_options,
+                &self.srt_options,
+                video_info,
+                &self.render_settings,
+            ) {
+                Ok((to_ffmpeg_sender, from_ffmpeg_receiver)) => {
+                    self.to_ffmpeg_sender = Some(to_ffmpeg_sender);
+                    self.from_ffmpeg_receiver = Some(from_ffmpeg_receiver);
+                }
+                Err(e) => {
+                    self.render_status.status = crate::render_status::Status::Error {
+                        progress_pct: 0.0,
+                        error: format!("Failed to start video render: {}", e),
+                    }
+                }
+            };
+        }
+    }
+
+    fn load_next_file(&mut self) -> bool {
+        if let Some(current_video) = &self.video_file {
+            if let Some(parent) = current_video.parent() {
+                if let Ok(entries) = std::fs::read_dir(parent) {
+                    let mut mp4_files: Vec<PathBuf> = entries
+                        .flatten()
+                        .map(|e| e.path())
+                        .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("mp4")))
+                        .collect();
+                    mp4_files.sort();
+
+                    if let Some(current_idx) = mp4_files.iter().position(|p| p == current_video) {
+                        for path in mp4_files.iter().skip(current_idx + 1) {
+                            let file_name = path.file_name().unwrap().to_string_lossy();
+                            if !file_name.to_lowercase().ends_with("_with_osd.mp4") {
+                                tracing::info!("Batch processing: Loading next file: {:?}", path);
+                                self.import_video_file(std::slice::from_ref(path));
+                                // Ensure files are loaded before returning true
+                                if self.all_files_loaded() {
+                                    return true;
+                                } else {
+                                    tracing::warn!("Batch processing: Failed to load dependencies for {:?}", path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        tracing::info!("Batch processing: No more files to process.");
+        false
     }
 }

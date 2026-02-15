@@ -13,6 +13,8 @@ pub struct AppConfig {
     pub app_update: AppUpdate,
     pub font_path: String,
     pub userfont_path: String,
+    #[derivative(Default(value = "false"))]
+    pub batch_processing: bool,
 }
 
 const CONFIG_NAME: &str = "saved_settings";

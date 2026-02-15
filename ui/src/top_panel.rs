@@ -12,7 +12,10 @@ impl WalksnailOsdTool {
                 self.reset_files(ui);
                 ui.add_space(30.0);
                 ui.label(RichText::new(&self.app_version).weak());
-                ui.hyperlink_to(RichText::new("Download OSD fonts").small(), "https://sites.google.com/view/sneaky-fpv/");
+                ui.hyperlink_to(
+                    RichText::new("Download OSD fonts").small(),
+                    "https://sites.google.com/view/sneaky-fpv/",
+                );
                 ui.add_space(ui.available_width() - 55.0);
                 self.toggle_light_dark_theme(ui, ctx);
                 self.about_window(ui, ctx);
@@ -68,7 +71,10 @@ impl WalksnailOsdTool {
 
     fn select_font_folder(&mut self, ui: &mut Ui) {
         if ui
-            .add_enabled(self.render_status.is_not_in_progress(), Button::new("Select font folder"))
+            .add_enabled(
+                self.render_status.is_not_in_progress(),
+                Button::new("Select font folder"),
+            )
             .clicked()
         {
             if let Some(path) = rfd::FileDialog::new().pick_folder() {

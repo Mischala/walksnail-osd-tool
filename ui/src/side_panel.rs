@@ -7,7 +7,8 @@ use crate::util::{format_minutes_seconds, separator_with_space};
 
 impl WalksnailOsdTool {
     pub fn render_sidepanel(&mut self, ctx: &egui::Context) {
-        let panel_width = self.ui_dimensions.file_info_column1_width + self.ui_dimensions.file_info_column2_width + 40.0;
+        let panel_width =
+            self.ui_dimensions.file_info_column1_width + self.ui_dimensions.file_info_column2_width + 40.0;
         egui::SidePanel::left("side_panel")
             .default_width(270.0)
             .min_width(panel_width)
@@ -282,28 +283,30 @@ impl WalksnailOsdTool {
                                     ui.label("File name:");
                                 });
                                 row.col(|ui| {
-                                    let font_data = self.font_file.as_ref().map(|f| (
-                                        f.file_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or("-".into()),
-                                        f.character_size.clone(),
-                                        f.file_path.clone()
-                                    ));
+                                    let font_data = self.font_file.as_ref().map(|f| {
+                                        (
+                                            f.file_path
+                                                .file_name()
+                                                .map(|n| n.to_string_lossy().to_string())
+                                                .unwrap_or("-".into()),
+                                            f.character_size.clone(),
+                                            f.file_path.clone(),
+                                        )
+                                    });
 
                                     if let Some((file_name, size, current_path)) = font_data {
                                         let folder = self.userfont_path.clone();
                                         let firmware = self.osd_file.as_ref().map(|f| f.fc_firmware.clone());
 
                                         ui.menu_button(file_name, |ui| {
-                                            let compatible_fonts =
-                                                backend::font::font_picker::find_compatible_fonts(
-                                                    &folder,
-                                                    &size,
-                                                    firmware.as_ref(),
-                                                );
+                                            let compatible_fonts = backend::font::font_picker::find_compatible_fonts(
+                                                &folder,
+                                                &size,
+                                                firmware.as_ref(),
+                                            );
                                             for path in compatible_fonts {
-                                                let name = path
-                                                    .file_name()
-                                                    .map(|f| f.to_string_lossy())
-                                                    .unwrap_or_default();
+                                                let name =
+                                                    path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
                                                 let selected = path == current_path;
                                                 if ui.selectable_label(selected, name).clicked() {
                                                     if let Ok(new_font) = backend::font::FontFile::open(path) {

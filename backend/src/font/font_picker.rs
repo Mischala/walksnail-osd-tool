@@ -17,14 +17,14 @@ pub fn find_font_in_folder(
         return None;
     }
 
-    let is_ascent = osd_filename.map_or(false, |f| f.to_lowercase().contains("ascent"));
+    let is_ascent = osd_filename.is_some_and(|f| f.to_lowercase().contains("ascent"));
 
     let inav_prefix = if let Some(v) = version {
-        if is_ascent && (v.starts_with('8') || v.chars().next().map_or(false, |c| c.is_ascii_digit() && c >= '9')) {
+        if is_ascent && (v.starts_with('8') || v.chars().next().is_some_and(|c| c.is_ascii_digit() && c >= '9')) {
             "WS_INAV9_Ascent_"
         } else if v.starts_with('8') {
             "WS_INAV_8_"
-        } else if v.chars().next().map_or(false, |c| c.is_ascii_digit() && c >= '9') {
+        } else if v.chars().next().is_some_and(|c| c.is_ascii_digit() && c >= '9') {
             "WS_INAV9_"
         } else {
             "WS_INAV_"
@@ -37,11 +37,7 @@ pub fn find_font_in_folder(
         }
     };
 
-    let btfl_prefix = if is_ascent {
-        "WS_BTFL_Ascent_"
-    } else {
-        "WS_BFx4_"
-    };
+    let btfl_prefix = if is_ascent { "WS_BTFL_Ascent_" } else { "WS_BFx4_" };
 
     let search_patterns: Vec<String> = match (firmware, character_size) {
         // Betaflight (also used for Kiss, KissUltra, Unknown)
@@ -117,16 +113,14 @@ pub fn find_compatible_fonts(
     if let Ok(entries) = std::fs::read_dir(folder) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map_or(false, |e| e.eq_ignore_ascii_case("png")) {
+            if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) {
                 let file_name = path
                     .file_name()
                     .map(|f| f.to_string_lossy().to_uppercase())
                     .unwrap_or_default();
 
                 let is_firmware_match = match firmware {
-                    Some(FcFirmware::Betaflight)
-                    | Some(FcFirmware::Kiss)
-                    | Some(FcFirmware::KissUltra) => {
+                    Some(FcFirmware::Betaflight) | Some(FcFirmware::Kiss) | Some(FcFirmware::KissUltra) => {
                         file_name.starts_with("WS_BTFL_")
                             || file_name.starts_with("WS_BFX4_")
                             || file_name.starts_with("BF_")
@@ -137,18 +131,14 @@ pub fn find_compatible_fonts(
                             || file_name.starts_with("WS_INAV9_")
                             || file_name.starts_with("INAV_")
                     }
-                    Some(FcFirmware::ArduPilot) => {
-                        file_name.starts_with("WS_ARDU_") || file_name.starts_with("ARDU_")
-                    }
+                    Some(FcFirmware::ArduPilot) => file_name.starts_with("WS_ARDU_") || file_name.starts_with("ARDU_"),
                     _ => true,
                 };
 
                 if is_firmware_match {
                     if let Ok(reader) = image::io::Reader::open(&path) {
                         if let Ok((width, height)) = reader.into_dimensions() {
-                            if let Ok((size, _, _)) =
-                                crate::font::dimensions::detect_dimensions(width, height)
-                            {
+                            if let Ok((size, _, _)) = crate::font::dimensions::detect_dimensions(width, height) {
                                 if size == *character_size {
                                     compatible_fonts.push(path);
                                 }

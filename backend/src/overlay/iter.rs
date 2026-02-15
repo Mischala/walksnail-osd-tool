@@ -1,5 +1,4 @@
-pub use std::iter::Peekable;
-pub use std::vec::IntoIter;
+pub use std::{iter::Peekable, vec::IntoIter};
 
 use crossbeam_channel::{Receiver, Sender};
 use ffmpeg_sidecar::{
@@ -116,9 +115,7 @@ impl Iterator for FrameOverlayIter {
                         }
                     }
                     FfmpegEvent::Done | FfmpegEvent::LogEOF => {
-                        self.ffmpeg_sender
-                            .send(FromFfmpegMessage::DecoderFinished)
-                            .unwrap();
+                        self.ffmpeg_sender.send(FromFfmpegMessage::DecoderFinished).unwrap();
                     }
                     _ => {}
                 }
@@ -127,4 +124,3 @@ impl Iterator for FrameOverlayIter {
         })
     }
 }
-

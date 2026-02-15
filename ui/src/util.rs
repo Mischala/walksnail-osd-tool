@@ -206,6 +206,7 @@ impl Into<AppConfig> for &mut WalksnailOsdTool {
                 .to_string_lossy()
                 .to_string(),
             userfont_path: self.userfont_path.to_string_lossy().to_string(),
+            batch_processing: self.batch_processing,
         }
     }
 }

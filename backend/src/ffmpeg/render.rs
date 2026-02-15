@@ -1,4 +1,10 @@
-use std::{io::Write, path::PathBuf, thread};
+use std::{
+    collections::{BTreeMap, HashMap},
+    io::Write,
+    path::PathBuf,
+    sync::Arc,
+    thread,
+};
 
 use crossbeam_channel::{Receiver, Sender};
 use ffmpeg_sidecar::{
@@ -6,20 +12,17 @@ use ffmpeg_sidecar::{
     command::FfmpegCommand,
     event::{FfmpegEvent, LogLevel},
 };
+use image::{Rgba, RgbaImage};
+use rayon::prelude::*;
 
 use super::{
     error::FfmpegError, render_settings::RenderSettings, Encoder, FromFfmpegMessage, ToFfmpegMessage, UpscaleTarget,
     VideoInfo,
 };
-use std::sync::Arc;
-use std::collections::{HashMap, BTreeMap};
-use rayon::prelude::*;
-use image::{RgbaImage, Rgba};
-
 use crate::{
     font,
     osd::{self, OsdOptions},
-    overlay::{FrameOverlayIter, overlay_osd_cached, overlay_srt_data},
+    overlay::{overlay_osd_cached, overlay_srt_data, FrameOverlayIter},
     srt::{self, SrtOptions},
 };
 
@@ -73,7 +76,6 @@ pub fn start_video_render(
     };
     let pad_4_3_to_16_9 = render_settings.pad_4_3_to_16_9;
 
-
     // Iterator over decoded video and OSD synchronization
     let frame_overlay_iter = FrameOverlayIter::new(
         decoder_process
@@ -106,7 +108,7 @@ pub fn start_video_render(
                     HashMap::new(), // Thread-local glyph cache
                     |glyph_cache, (i, render_data)| {
                         let mut video_frame = render_data.video_frame;
-                        
+
                         let mut frame_image = if let Some(chroma_key) = chroma_key_rgba {
                             RgbaImage::from_pixel(video_frame.width, video_frame.height, chroma_key)
                         } else {
@@ -118,7 +120,8 @@ pub fn start_video_render(
                         let mut x_offset = 0;
                         if pad_4_3_to_16_9 && is_4_3 {
                             let final_width = video_frame.height * 16 / 9;
-                            let mut padded_image = RgbaImage::from_pixel(final_width, video_frame.height, Rgba([0, 0, 0, 255]));
+                            let mut padded_image =
+                                RgbaImage::from_pixel(final_width, video_frame.height, Rgba([0, 0, 0, 255]));
                             x_offset = (final_width - video_frame.width) / 2;
                             image::imageops::overlay(&mut padded_image, &frame_image, x_offset as i64, 0);
                             frame_image = padded_image;
@@ -134,7 +137,7 @@ pub fn start_video_render(
                             glyph_cache,
                         );
 
-                         if let Some(current_srt_frame) = &render_data.srt_frame {
+                        if let Some(current_srt_frame) = &render_data.srt_frame {
                             if let Some(srt_data) = &current_srt_frame.data {
                                 overlay_srt_data(
                                     &mut frame_image,
@@ -150,7 +153,7 @@ pub fn start_video_render(
                     },
                 )
                 .for_each(|result| {
-                    if let Err(_) = processed_tx.send(result) {
+                    if processed_tx.send(result).is_err() {
                         // Receiver closed, stop processing
                     }
                 });

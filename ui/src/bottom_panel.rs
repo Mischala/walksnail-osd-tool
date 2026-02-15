@@ -1,8 +1,8 @@
-use backend::ffmpeg::{start_video_render, ToFfmpegMessage};
+use backend::ffmpeg::ToFfmpegMessage;
 use egui::{vec2, Align, Button, Color32, Layout, ProgressBar, RichText, Ui};
 
 use super::{util::format_minutes_seconds, WalksnailOsdTool};
-use crate::{render_status::Status, util::get_output_video_path};
+use crate::render_status::Status;
 
 impl WalksnailOsdTool {
     pub fn render_bottom_panel(&mut self, ctx: &egui::Context) {
@@ -28,42 +28,15 @@ impl WalksnailOsdTool {
                 .clicked()
             {
                 tracing::info!("Start render button clicked");
-                self.render_status.start_render();
-                if let (Some(video_path), Some(osd_file), Some(font_file), Some(video_info)) =
-                    (&self.video_file, &self.osd_file, &self.font_file, &self.video_info)
-                {
-                    self.osd_options.osd_playback_speed_factor = if self.osd_options.adjust_playback_speed {
-                        let video_duration = video_info.duration;
-                        let osd_duration = osd_file.duration;
-                        video_duration.as_secs_f32() / osd_duration.as_secs_f32()
-                    } else {
-                        1.0
-                    };
-                    match start_video_render(
-                        &self.dependencies.ffmpeg_path,
-                        video_path,
-                        &get_output_video_path(video_path),
-                        osd_file.frames.clone(),
-                        self.srt_file.as_ref().map(|s| s.frames.clone()).unwrap_or_default(),
-                        font_file.clone(),
-                        self.srt_font.as_ref().unwrap().clone(),
-                        &self.osd_options,
-                        &self.srt_options,
-                        video_info,
-                        &self.render_settings,
-                    ) {
-                        Ok((to_ffmpeg_sender, from_ffmpeg_receiver)) => {
-                            self.to_ffmpeg_sender = Some(to_ffmpeg_sender);
-                            self.from_ffmpeg_receiver = Some(from_ffmpeg_receiver);
-                        }
-                        Err(e) => {
-                            self.render_status.status = Status::Error {
-                                progress_pct: 0.0,
-                                error: format!("Failed to start video render: {}", e),
-                            }
-                        }
-                    };
-                }
+                self.start_render_process();
+            }
+            ui.add_space(10.0);
+            if ui
+                .checkbox(&mut self.batch_processing, "Batch processing")
+                .on_hover_text("Automatically load and render the next MP4 file in the folder after this one finishes.")
+                .changed()
+            {
+                self.config_changed = Some(std::time::Instant::now());
             }
         } else {
             if ui.add(Button::new("Stop render").min_size(button_size)).clicked() {
