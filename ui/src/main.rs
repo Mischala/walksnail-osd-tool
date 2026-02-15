@@ -64,7 +64,8 @@ fn main() -> Result<(), eframe::Error> {
             .with_drag_and_drop(true)
             .with_icon(icon_data)
             .with_min_inner_size([600.0, 300.0])
-            .with_inner_size([1000.0, 700.0]),
+            .with_inner_size([1000.0, 700.0])
+            .with_position([0.0, 0.0]),
         ..Default::default()
     };
     tracing::info!("Starting GUI");

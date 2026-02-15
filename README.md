@@ -23,9 +23,19 @@ Cross-platform tool for rendering the flight controller OSD and SRT data from th
 - Render selected info from the SRT file.
 - Selectable output video bitrate (more encoder settings will be added later).
 - Upscale output video to 1440p or 2160p for higher quality when uploading to YouTube.
+- Batch processing mode to automatically render all videos in a folder.
 - Mask OSD items ([demo](https://imgur.com/u8xi2tX)).
 
 Anything else? Open a feature request [here](https://github.com/ksielick/walksnail-osd-tool/issues/new?assignees=&labels=enhancement&template=feature_request.yaml).
+
+## Batch Processing
+The tool supports an automatic batch processing mode. When enabled, the application will:
+1. Load and render the currently selected video.
+2. Once the render is complete, it will automatically look for the next `.mp4` file in the same folder.
+3. Automatically load matching OSD/SRT files and start the next render.
+4. Skip files that have already been processed (ending in `_with_osd.mp4`).
+
+This is ideal for processing entire flight sessions without manual intervention.
 
 ## Installation
 

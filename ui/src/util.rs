@@ -43,6 +43,7 @@ impl WalksnailOsdTool {
     }
 
     pub fn import_video_file(&mut self, file_handles: &[PathBuf]) {
+        self.pending_batch_render = false;
         if let Some(video_file) = filter_file_with_extention(file_handles, "mp4") {
             self.video_file = Some(video_file.clone());
             self.video_info = VideoInfo::get(video_file, &self.dependencies.ffprobe_path).ok();
@@ -55,6 +56,8 @@ impl WalksnailOsdTool {
             self.import_osd_file(&[matching_file_with_extension(video_file, "osd")]);
             self.import_srt_file(&[matching_file_with_extension(video_file, "srt")]);
 
+            self.auto_select_font();
+
             // If no .osd file was loaded, try Artlynk extraction from video SEI data
             if self.osd_file.is_none() {
                 let ffmpeg_path = self.dependencies.ffmpeg_path.clone();
@@ -63,6 +66,29 @@ impl WalksnailOsdTool {
                 self.artlynk_extraction_promise = Some(Promise::spawn_thread("Artlynk extraction", move || {
                     backend::osd::artlynk::extract_osd_from_video(&ffmpeg_path, &video_path)
                 }));
+            }
+            if let Some(parent) = video_file.parent() {
+                if let Ok(entries) = std::fs::read_dir(parent) {
+                    let mut mp4_files: Vec<PathBuf> = entries
+                        .flatten()
+                        .map(|e| e.path())
+                        .filter(|p| {
+                            p.extension().is_some_and(|e| e.eq_ignore_ascii_case("mp4"))
+                                && !p
+                                    .file_name()
+                                    .unwrap()
+                                    .to_string_lossy()
+                                    .to_lowercase()
+                                    .ends_with("_with_osd.mp4")
+                        })
+                        .collect();
+                    mp4_files.sort();
+                    if let Some(idx) = mp4_files.iter().position(|p| p == video_file) {
+                        self.batch_progress = Some((idx + 1, mp4_files.len()));
+                    } else {
+                        self.batch_progress = None;
+                    }
+                }
             }
         }
     }
@@ -99,6 +125,36 @@ impl WalksnailOsdTool {
         if let Some(font_file_path) = filter_file_with_extention(file_handles, "png") {
             self.font_file = FontFile::open(font_file_path.clone()).ok();
             self.config_changed = Some(Instant::now());
+        }
+    }
+
+    pub fn auto_select_font(&mut self) {
+        if let (Some(video_info), Some(osd_file)) = (&self.video_info, &self.osd_file) {
+            let character_size = backend::overlay::get_character_size(video_info.width, video_info.height);
+
+            // Only auto-select if no font loaded, or the current font is from the userfont folder
+            let should_auto_select = match &self.font_file {
+                None => true,
+                Some(f) => f.file_path.starts_with(&self.userfont_path),
+            };
+
+            if should_auto_select {
+                if let Some(font) = backend::font::font_picker::find_font_in_folder(
+                    &self.userfont_path,
+                    &osd_file.fc_firmware,
+                    &character_size,
+                    osd_file.version.as_deref(),
+                    osd_file.file_path.file_name().and_then(|n| n.to_str()),
+                ) {
+                    tracing::info!(
+                        "Auto-selected font: {:?} for firmware {:?}, resolution {:?}",
+                        font.file_path,
+                        osd_file.fc_firmware,
+                        character_size
+                    );
+                    self.font_file = Some(font);
+                }
+            }
         }
     }
 }

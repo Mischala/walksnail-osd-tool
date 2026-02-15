@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2026-02-15
+
+### Added
+- **Batch Processing**: Automatically load and render the next MP4 in a folder after the current one finishes.
+- Progress visualization for batch processing (current file / total files).
+- Automatic top-left positioning of the application window on startup for better multi-monitor support.
+
+
 ## [0.4.6] - 2026-02-15
 
 ### Added
@@ -12,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Side panel auto-resize to accommodate long font filenames.
 
 ### Changed
-- Parallel OSD rendering using all CPU cores (was single-threaded).Significantly improves rendering speed (FPS).
+- Parallel OSD rendering using all CPU cores (was single-threaded). Significantly improves rendering speed (FPS).
 
 ### Removed
 

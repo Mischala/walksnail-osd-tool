@@ -30,14 +30,6 @@ impl WalksnailOsdTool {
                 tracing::info!("Start render button clicked");
                 self.start_render_process();
             }
-            ui.add_space(10.0);
-            if ui
-                .checkbox(&mut self.batch_processing, "Batch processing")
-                .on_hover_text("Automatically load and render the next MP4 file in the folder after this one finishes.")
-                .changed()
-            {
-                self.config_changed = Some(std::time::Instant::now());
-            }
         } else {
             if ui.add(Button::new("Stop render").min_size(button_size)).clicked() {
                 tracing::info!("Stop render button clicked");
@@ -53,16 +45,49 @@ impl WalksnailOsdTool {
     }
 
     fn render_progress(&mut self, ui: &mut Ui) {
-        match &self.render_status.status {
-            Status::Idle => {}
-            Status::InProgress {
-                time_remaining,
-                fps,
-                speed,
-                progress_pct,
-            } => {
-                ui.vertical(|ui| {
+        ui.vertical(|ui| {
+            // Top row: Progress bar (if applicable)
+            match &self.render_status.status {
+                Status::InProgress { progress_pct, .. } => {
                     ui.add(ProgressBar::new(*progress_pct).show_percentage());
+                }
+                Status::Completed => {
+                    ui.add(ProgressBar::new(1.0).text("Done"));
+                }
+                Status::Cancelled { progress_pct } => {
+                    ui.add(ProgressBar::new(*progress_pct).text("Cancelled"));
+                }
+                Status::Error { progress_pct, .. } => {
+                    ui.add(ProgressBar::new(*progress_pct));
+                }
+                Status::Idle => {}
+            }
+
+            // Bottom row: Batch processing (left) and Render details (right)
+            ui.horizontal(|ui| {
+                if ui
+                    .checkbox(&mut self.batch_processing, "Batch processing")
+                    .on_hover_text(
+                        "Automatically load and render the next MP4 file in the folder after this one finishes.",
+                    )
+                    .changed()
+                {
+                    self.config_changed = Some(std::time::Instant::now());
+                }
+
+                if self.batch_processing {
+                    if let Some((current, total)) = self.batch_progress {
+                        ui.label(format!(": {}/{}", current, total));
+                    }
+                }
+
+                if let Status::InProgress {
+                    time_remaining,
+                    fps,
+                    speed,
+                    ..
+                } = &self.render_status.status
+                {
                     ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                         ui.add_space(3.0);
                         let time_remaining_string = if let Some(time_remaining) = time_remaining {
@@ -78,24 +103,12 @@ impl WalksnailOsdTool {
                             .monospace(),
                         );
                     });
-                });
-            }
-            Status::Completed => {
-                ui.vertical(|ui| {
-                    ui.add(ProgressBar::new(1.0).text("Done"));
-                });
-            }
-            Status::Cancelled { progress_pct } => {
-                ui.vertical(|ui| {
-                    ui.add(ProgressBar::new(*progress_pct).text("Cancelled"));
-                });
-            }
-            Status::Error { progress_pct, error } => {
-                ui.vertical(|ui| {
-                    ui.add(ProgressBar::new(*progress_pct));
-                    ui.label(RichText::new(error.clone()).color(Color32::RED));
-                });
-            }
-        }
+                } else if let Status::Error { error, .. } = &self.render_status.status {
+                    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                        ui.label(RichText::new(error.clone()).color(Color32::RED));
+                    });
+                }
+            });
+        });
     }
 }

@@ -13,7 +13,7 @@ impl WalksnailOsdTool {
                 ui.add_space(30.0);
                 ui.label(RichText::new(&self.app_version).weak());
                 ui.hyperlink_to(
-                    RichText::new("Download OSD fonts").small(),
+                    RichText::new("Download OSD fonts"),
                     "https://sites.google.com/view/sneaky-fpv/",
                 );
                 ui.add_space(ui.available_width() - 55.0);
@@ -36,7 +36,6 @@ impl WalksnailOsdTool {
                 tracing::info!("Opened files {:?}", file_handles);
                 self.import_video_file(&file_handles);
                 self.import_osd_file(&file_handles);
-                self.auto_select_font();
                 self.import_font_file(&file_handles);
                 self.import_srt_file(&file_handles);
 
@@ -59,7 +58,6 @@ impl WalksnailOsdTool {
             tracing::info!("Dropped files {:?}", file_handles);
             self.import_video_file(&file_handles);
             self.import_osd_file(&file_handles);
-            self.auto_select_font();
             self.import_font_file(&file_handles);
             self.import_srt_file(&file_handles);
             self.auto_center_horizontal();
@@ -100,36 +98,6 @@ impl WalksnailOsdTool {
             self.osd_preview.preview_frame = 1;
             self.render_status.reset();
             tracing::info!("Reset files");
-        }
-    }
-
-    pub(crate) fn auto_select_font(&mut self) {
-        if let (Some(video_info), Some(osd_file)) = (&self.video_info, &self.osd_file) {
-            let character_size = backend::overlay::get_character_size(video_info.width, video_info.height);
-
-            // Only auto-select if no font loaded, or the current font is from the userfont folder
-            let should_auto_select = match &self.font_file {
-                None => true,
-                Some(f) => f.file_path.starts_with(&self.userfont_path),
-            };
-
-            if should_auto_select {
-                if let Some(font) = backend::font::font_picker::find_font_in_folder(
-                    &self.userfont_path,
-                    &osd_file.fc_firmware,
-                    &character_size,
-                    osd_file.version.as_deref(),
-                    osd_file.file_path.file_name().and_then(|n| n.to_str()),
-                ) {
-                    tracing::info!(
-                        "Auto-selected font: {:?} for firmware {:?}, resolution {:?}",
-                        font.file_path,
-                        osd_file.fc_firmware,
-                        character_size
-                    );
-                    self.font_file = Some(font);
-                }
-            }
         }
     }
 

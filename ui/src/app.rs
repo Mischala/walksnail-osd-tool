@@ -51,6 +51,8 @@ pub struct WalksnailOsdTool {
     pub target: String,
     pub userfont_path: PathBuf,
     pub batch_processing: bool,
+    pub batch_progress: Option<(usize, usize)>,
+    pub pending_batch_render: bool,
 }
 
 impl WalksnailOsdTool {
@@ -111,6 +113,7 @@ impl WalksnailOsdTool {
                 dependencies_satisfied,
                 ffmpeg_path,
                 ffprobe_path,
+                userfont_path: userfont_path.clone(),
             },
             encoders,
             srt_font: Some(srt_font),
@@ -133,6 +136,7 @@ pub struct Dependencies {
     pub dependencies_satisfied: bool,
     pub ffmpeg_path: PathBuf,
     pub ffprobe_path: PathBuf,
+    pub userfont_path: PathBuf,
 }
 
 #[derive(Derivative)]
@@ -305,7 +309,12 @@ impl WalksnailOsdTool {
                 && self.batch_processing
                 && self.load_next_file()
             {
-                self.start_render_process();
+                if self.all_files_loaded() {
+                    self.start_render_process();
+                } else {
+                    tracing::info!("Batch processing: Next file loaded but dependencies (Artlynk OSD) not ready yet. Queuing render.");
+                    self.pending_batch_render = true;
+                }
             }
         }
     }
@@ -340,12 +349,22 @@ impl WalksnailOsdTool {
 
                         self.update_osd_preview(ctx);
                         self.auto_resize_window(ctx);
+
+                        if self.batch_processing && self.pending_batch_render && self.all_files_loaded() {
+                            tracing::info!("Artlynk extraction finished, starting queued batch render.");
+                            self.pending_batch_render = false;
+                            self.start_render_process();
+                        } else {
+                            self.pending_batch_render = false;
+                        }
                     }
                     Ok(None) => {
                         tracing::info!("Artlynk OSD extraction finished. No OSD data found.");
+                        self.pending_batch_render = false;
                     }
                     Err(e) => {
                         tracing::error!("Artlynk OSD extraction failed: {}", e);
+                        self.pending_batch_render = false;
                     }
                 }
                 self.artlynk_extraction_promise = None;
@@ -467,12 +486,7 @@ impl WalksnailOsdTool {
                             if !file_name.to_lowercase().ends_with("_with_osd.mp4") {
                                 tracing::info!("Batch processing: Loading next file: {:?}", path);
                                 self.import_video_file(std::slice::from_ref(path));
-                                // Ensure files are loaded before returning true
-                                if self.all_files_loaded() {
-                                    return true;
-                                } else {
-                                    tracing::warn!("Batch processing: Failed to load dependencies for {:?}", path);
-                                }
+                                return true;
                             }
                         }
                     }
