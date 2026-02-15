@@ -16,6 +16,7 @@ pub struct OsdFile {
     pub fc_firmware: FcFirmware,
     pub frame_count: u32,
     pub duration: Duration,
+    pub version: Option<String>,
     #[derivative(Debug = "ignore")]
     pub frames: Vec<Frame>,
 }
@@ -38,12 +39,46 @@ impl OsdFile {
         let duration = Duration::from_millis(frames.last().unwrap().time_millis.into())
             + Duration::from_secs_f32(frame_interval / 1000.0);
 
-        Ok(Self {
+        let mut osd_file = Self {
             file_path: path,
             fc_firmware,
             frame_count: frames.len() as u32,
             duration,
+            version: None,
             frames,
-        })
+        };
+
+        if osd_file.fc_firmware == FcFirmware::Inav {
+            osd_file.version = osd_file.detect_version();
+        }
+
+        Ok(osd_file)
+    }
+
+    fn detect_version(&self) -> Option<String> {
+        for frame in &self.frames {
+            let mut text = String::new();
+            for glyph in &frame.glyphs {
+                let c = if glyph.index >= 0x20 && glyph.index <= 0x7E {
+                    glyph.index as u8 as char
+                } else {
+                    ' '
+                };
+                text.push(c);
+            }
+
+            if let Some(pos) = text.find("INAV VERSION:") {
+                let version_part = text[pos + 13..].trim_start();
+                let version = version_part
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                if !version.is_empty() {
+                    return Some(version);
+                }
+            }
+        }
+        None
     }
 }

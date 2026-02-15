@@ -11,10 +11,15 @@ use super::{
     error::FfmpegError, render_settings::RenderSettings, Encoder, FromFfmpegMessage, ToFfmpegMessage, UpscaleTarget,
     VideoInfo,
 };
+use std::sync::Arc;
+use std::collections::{HashMap, BTreeMap};
+use rayon::prelude::*;
+use image::{RgbaImage, Rgba};
+
 use crate::{
     font,
     osd::{self, OsdOptions},
-    overlay::FrameOverlayIter,
+    overlay::{FrameOverlayIter, overlay_osd_cached, overlay_srt_data},
     srt::{self, SrtOptions},
 };
 
@@ -50,7 +55,26 @@ pub fn start_video_render(
     let (from_ffmpeg_tx, from_ffmpeg_rx) = crossbeam_channel::unbounded();
     let (to_ffmpeg_tx, to_ffmpeg_rx) = crossbeam_channel::unbounded();
 
-    // Iterator over decoded video and OSD frames
+    let font_file = Arc::new(font_file);
+    // srt_font is 'static, so Arc is fine? It's rusttype::Font. Sync? Yes.
+    // rusttype::Font<'a> is Sync.
+    let srt_font = Arc::new(srt_font);
+    let osd_options = Arc::new(osd_options.clone());
+    let srt_options = Arc::new(srt_options.clone());
+    let chroma_key_rgba = if render_settings.use_chroma_key {
+        Some(Rgba([
+            (render_settings.chroma_key[0] * 255.0) as u8,
+            (render_settings.chroma_key[1] * 255.0) as u8,
+            (render_settings.chroma_key[2] * 255.0) as u8,
+            255,
+        ]))
+    } else {
+        None
+    };
+    let pad_4_3_to_16_9 = render_settings.pad_4_3_to_16_9;
+
+
+    // Iterator over decoded video and OSD synchronization
     let frame_overlay_iter = FrameOverlayIter::new(
         decoder_process
             .iter()
@@ -58,31 +82,99 @@ pub fn start_video_render(
         decoder_process,
         osd_frames,
         srt_frames,
-        font_file,
-        srt_font,
-        osd_options,
-        srt_options,
+        osd_options.osd_playback_speed_factor,
         from_ffmpeg_tx.clone(),
         to_ffmpeg_rx,
-        if render_settings.use_chroma_key {
-            Some(render_settings.chroma_key)
-        } else {
-            None
-        },
-        render_settings.pad_4_3_to_16_9,
     );
 
-    // On another thread run the decoder iterator to completion and feed the output to the encoder's stdin
+    // Channel for parallel processed frames
+    let (processed_tx, processed_rx) = crossbeam_channel::bounded::<(usize, Vec<u8>)>(32);
+
+    let font_file_worker = font_file.clone();
+    let srt_font_worker = srt_font.clone();
+    let osd_options_worker = osd_options.clone();
+    let srt_options_worker = srt_options.clone();
+
+    // Spawn the parallel worker pool driver
+    thread::Builder::new()
+        .name("Parallel Render Driver".into())
+        .spawn(move || {
+            frame_overlay_iter
+                .enumerate()
+                .par_bridge()
+                .map_with(
+                    HashMap::new(), // Thread-local glyph cache
+                    |glyph_cache, (i, render_data)| {
+                        let mut video_frame = render_data.video_frame;
+                        
+                        let mut frame_image = if let Some(chroma_key) = chroma_key_rgba {
+                            RgbaImage::from_pixel(video_frame.width, video_frame.height, chroma_key)
+                        } else {
+                            RgbaImage::from_raw(video_frame.width, video_frame.height, video_frame.data).unwrap()
+                        };
+
+                        // Internal letterboxing
+                        let is_4_3 = (video_frame.width as f32 / video_frame.height as f32) < 1.5;
+                        let mut x_offset = 0;
+                        if pad_4_3_to_16_9 && is_4_3 {
+                            let final_width = video_frame.height * 16 / 9;
+                            let mut padded_image = RgbaImage::from_pixel(final_width, video_frame.height, Rgba([0, 0, 0, 255]));
+                            x_offset = (final_width - video_frame.width) / 2;
+                            image::imageops::overlay(&mut padded_image, &frame_image, x_offset as i64, 0);
+                            frame_image = padded_image;
+                            video_frame.width = final_width;
+                        }
+
+                        overlay_osd_cached(
+                            &mut frame_image,
+                            &render_data.osd_frame,
+                            &font_file_worker,
+                            &osd_options_worker,
+                            (x_offset as i32, 0),
+                            glyph_cache,
+                        );
+
+                         if let Some(current_srt_frame) = &render_data.srt_frame {
+                            if let Some(srt_data) = &current_srt_frame.data {
+                                overlay_srt_data(
+                                    &mut frame_image,
+                                    srt_data,
+                                    &srt_font_worker,
+                                    &srt_options_worker,
+                                    (x_offset as i32, 0),
+                                );
+                            }
+                        }
+
+                        (i, frame_image.into_raw())
+                    },
+                )
+                .for_each(|result| {
+                    if let Err(_) = processed_tx.send(result) {
+                        // Receiver closed, stop processing
+                    }
+                });
+        })?;
+
+    // On another thread read processed frames and write to encoder
     let mut encoder_stdin = encoder_process.take_stdin().expect("Failed to get `stdin` for encoder");
     thread::Builder::new()
         .name("Decoder handler".into())
         .spawn(move || {
             tracing::info_span!("Decoder handler thread").in_scope(|| {
-                frame_overlay_iter.for_each(|f| {
-                    if let Err(e) = encoder_stdin.write_all(&f.data) {
-                        tracing::error!("Failed to write to encoder stdin: {}", e);
+                let mut buffer = BTreeMap::new();
+                let mut next_idx = 0;
+
+                for (idx, data) in processed_rx {
+                    buffer.insert(idx, data);
+                    while let Some(data) = buffer.remove(&next_idx) {
+                        if let Err(e) = encoder_stdin.write_all(&data) {
+                            tracing::error!("Failed to write to encoder stdin: {}", e);
+                            return; // Stop if encoder error
+                        }
+                        next_idx += 1;
                     }
-                });
+                }
             });
         })
         .expect("Failed to spawn decoder handler thread");

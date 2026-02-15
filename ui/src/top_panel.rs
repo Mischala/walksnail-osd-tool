@@ -8,9 +8,11 @@ impl WalksnailOsdTool {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 self.import_files(ui, ctx);
+                self.select_font_folder(ui);
                 self.reset_files(ui);
                 ui.add_space(30.0);
                 ui.label(RichText::new(&self.app_version).weak());
+                ui.hyperlink_to(RichText::new("Download OSD fonts").small(), "https://sites.google.com/view/sneaky-fpv/");
                 ui.add_space(ui.available_width() - 55.0);
                 self.toggle_light_dark_theme(ui, ctx);
                 self.about_window(ui, ctx);
@@ -31,7 +33,7 @@ impl WalksnailOsdTool {
                 tracing::info!("Opened files {:?}", file_handles);
                 self.import_video_file(&file_handles);
                 self.import_osd_file(&file_handles);
-                self.auto_select_bundled_font();
+                self.auto_select_font();
                 self.import_font_file(&file_handles);
                 self.import_srt_file(&file_handles);
 
@@ -54,13 +56,27 @@ impl WalksnailOsdTool {
             tracing::info!("Dropped files {:?}", file_handles);
             self.import_video_file(&file_handles);
             self.import_osd_file(&file_handles);
-            self.auto_select_bundled_font();
+            self.auto_select_font();
             self.import_font_file(&file_handles);
             self.import_srt_file(&file_handles);
             self.auto_center_horizontal();
             self.update_osd_preview(ctx);
             self.auto_resize_window(ctx);
             self.render_status.reset();
+        }
+    }
+
+    fn select_font_folder(&mut self, ui: &mut Ui) {
+        if ui
+            .add_enabled(self.render_status.is_not_in_progress(), Button::new("Select font folder"))
+            .clicked()
+        {
+            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                tracing::info!("Selected font folder: {:?}", path);
+                self.userfont_path = path;
+                self.auto_select_font();
+                self.config_changed = Some(std::time::Instant::now());
+            }
         }
     }
 
@@ -81,23 +97,26 @@ impl WalksnailOsdTool {
         }
     }
 
-    pub(crate) fn auto_select_bundled_font(&mut self) {
+    pub(crate) fn auto_select_font(&mut self) {
         if let (Some(video_info), Some(osd_file)) = (&self.video_info, &self.osd_file) {
             let character_size = backend::overlay::get_character_size(video_info.width, video_info.height);
 
-            // Only auto-select if no font loaded, or the current font is a bundled one
-            // (i.e., user hasn't manually picked a .png font)
+            // Only auto-select if no font loaded, or the current font is from the userfont folder
             let should_auto_select = match &self.font_file {
                 None => true,
-                Some(f) => f.file_path.to_string_lossy().contains("(bundled)"),
+                Some(f) => f.file_path.starts_with(&self.userfont_path),
             };
 
             if should_auto_select {
-                if let Some(font) =
-                    backend::font::bundled_fonts::get_bundled_font(&osd_file.fc_firmware, &character_size)
-                {
+                if let Some(font) = backend::font::font_picker::find_font_in_folder(
+                    &self.userfont_path,
+                    &osd_file.fc_firmware,
+                    &character_size,
+                    osd_file.version.as_deref(),
+                    osd_file.file_path.file_name().and_then(|n| n.to_str()),
+                ) {
                     tracing::info!(
-                        "Auto-selected bundled font: {:?} for firmware {:?}, resolution {:?}",
+                        "Auto-selected font: {:?} for firmware {:?}, resolution {:?}",
                         font.file_path,
                         osd_file.fc_firmware,
                         character_size
@@ -108,10 +127,26 @@ impl WalksnailOsdTool {
         }
     }
 
-    pub(crate) fn auto_resize_window(&self, ctx: &egui::Context) {
+    pub(crate) fn auto_resize_window(&mut self, ctx: &egui::Context) {
         if let Some(video_info) = &self.video_info {
             // Side panel width + padding
-            let side_panel_width = 285.0_f32;
+            let mut side_panel_width = 285.0_f32;
+
+            if let Some(font_file) = &self.font_file {
+                if let Some(name) = font_file.file_path.file_name().and_then(|n| n.to_str()) {
+                    if let Some(font_id) = ctx.style().text_styles.get(&egui::TextStyle::Body) {
+                        let text_width = ctx.fonts(|f| {
+                            f.layout_no_wrap(name.to_string(), font_id.clone(), egui::Color32::WHITE)
+                                .size()
+                                .x
+                        });
+                        self.ui_dimensions.file_info_column2_width = text_width + 20.0;
+                        // 100.0 (col1) + text_width + 40.0 (padding/margins)
+                        let required_width = self.ui_dimensions.file_info_column1_width + text_width + 40.0;
+                        side_panel_width = side_panel_width.max(required_width);
+                    }
+                }
+            }
             // Desired preview width in the central panel
             let preview_width = 700.0_f32;
             let total_width = side_panel_width + preview_width;

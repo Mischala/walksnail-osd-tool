@@ -236,6 +236,7 @@ pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<O
         fc_firmware: FcFirmware::Betaflight,
         frame_count,
         duration,
+        version: None,
         frames,
     }))
 }

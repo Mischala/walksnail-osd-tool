@@ -7,9 +7,11 @@ use crate::util::{format_minutes_seconds, separator_with_space};
 
 impl WalksnailOsdTool {
     pub fn render_sidepanel(&mut self, ctx: &egui::Context) {
+        let panel_width = self.ui_dimensions.file_info_column1_width + self.ui_dimensions.file_info_column2_width + 40.0;
         egui::SidePanel::left("side_panel")
             .default_width(270.0)
-            .max_width(400.0)
+            .min_width(panel_width)
+            .max_width(1000.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add_space(10.0);
@@ -19,7 +21,7 @@ impl WalksnailOsdTool {
                     separator_with_space(ui, 15.0);
                     self.srt_info(ui);
                     separator_with_space(ui, 15.0);
-                    self.font_info(ui);
+                    self.font_info(ui, ctx);
                 });
             });
     }
@@ -249,9 +251,8 @@ impl WalksnailOsdTool {
             });
     }
 
-    fn font_info(&self, ui: &mut Ui) {
-        let font_file = self.font_file.as_ref();
-        let file_loaded = font_file.is_some();
+    fn font_info(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+        let file_loaded = self.font_file.is_some();
 
         CollapsingHeader::new(RichText::new("Font file").heading())
             .icon(move |ui, opennes, response| circle_icon(ui, opennes, response, file_loaded))
@@ -269,17 +270,52 @@ impl WalksnailOsdTool {
                             let row_height = self.ui_dimensions.file_info_row_height;
                             body.row(row_height, |mut row| {
                                 row.col(|ui| {
+                                    ui.label("Font folder:");
+                                });
+                                row.col(|ui| {
+                                    ui.label(self.userfont_path.to_string_lossy());
+                                });
+                            });
+
+                            body.row(row_height, |mut row| {
+                                row.col(|ui| {
                                     ui.label("File name:");
                                 });
                                 row.col(|ui| {
-                                    if let Some(font_file) = font_file {
-                                        ui.label(
-                                            font_file
-                                                .file_path
-                                                .file_name()
-                                                .map(|f| f.to_string_lossy())
-                                                .unwrap_or("-".into()),
-                                        );
+                                    let font_data = self.font_file.as_ref().map(|f| (
+                                        f.file_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or("-".into()),
+                                        f.character_size.clone(),
+                                        f.file_path.clone()
+                                    ));
+
+                                    if let Some((file_name, size, current_path)) = font_data {
+                                        let folder = self.userfont_path.clone();
+                                        let firmware = self.osd_file.as_ref().map(|f| f.fc_firmware.clone());
+
+                                        ui.menu_button(file_name, |ui| {
+                                            let compatible_fonts =
+                                                backend::font::font_picker::find_compatible_fonts(
+                                                    &folder,
+                                                    &size,
+                                                    firmware.as_ref(),
+                                                );
+                                            for path in compatible_fonts {
+                                                let name = path
+                                                    .file_name()
+                                                    .map(|f| f.to_string_lossy())
+                                                    .unwrap_or_default();
+                                                let selected = path == current_path;
+                                                if ui.selectable_label(selected, name).clicked() {
+                                                    if let Ok(new_font) = backend::font::FontFile::open(path) {
+                                                        self.font_file = Some(new_font);
+                                                        self.auto_center_horizontal();
+                                                        self.update_osd_preview(ctx);
+                                                        self.auto_resize_window(ctx);
+                                                        ui.close_menu();
+                                                    }
+                                                }
+                                            }
+                                        });
                                     } else {
                                         ui.label("-");
                                     }
@@ -291,7 +327,7 @@ impl WalksnailOsdTool {
                                     ui.label("Font size:");
                                 });
                                 row.col(|ui| {
-                                    if let Some(font_file) = font_file {
+                                    if let Some(font_file) = &self.font_file {
                                         ui.label(font_file.character_size.to_string());
                                     } else {
                                         ui.label("-");
@@ -304,7 +340,7 @@ impl WalksnailOsdTool {
                                     ui.label("Characters:");
                                 });
                                 row.col(|ui| {
-                                    if let Some(font_file) = font_file {
+                                    if let Some(font_file) = &self.font_file {
                                         ui.label(format!(
                                             "{}{}",
                                             font_file.character_count,

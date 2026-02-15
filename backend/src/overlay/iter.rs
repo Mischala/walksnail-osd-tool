@@ -1,83 +1,67 @@
-use std::{collections::HashMap, iter::Peekable, vec::IntoIter};
+pub use std::iter::Peekable;
+pub use std::vec::IntoIter;
 
 use crossbeam_channel::{Receiver, Sender};
 use ffmpeg_sidecar::{
     child::FfmpegChild,
-    event::{FfmpegEvent, OutputVideoFrame},
+    event::{FfmpegEvent, LogLevel, OutputVideoFrame},
     iter::FfmpegIterator,
 };
-use image::{Rgba, RgbaImage};
 
-use super::{overlay_osd_cached, overlay_srt_data};
 use crate::{
-    ffmpeg::{handle_decoder_events, FromFfmpegMessage, ToFfmpegMessage},
-    font,
-    osd::{self, OsdOptions},
-    srt::{self, SrtOptions},
+    ffmpeg::{FromFfmpegMessage, ToFfmpegMessage},
+    osd, srt,
 };
 
-pub struct FrameOverlayIter<'a> {
+pub struct FrameRenderData {
+    pub video_frame: OutputVideoFrame,
+    pub osd_frame: osd::Frame,
+    pub srt_frame: Option<srt::SrtFrame>,
+}
+
+pub struct FrameOverlayIter {
     decoder_iter: FfmpegIterator,
     decoder_process: FfmpegChild,
     osd_frames_iter: Peekable<IntoIter<osd::Frame>>,
     srt_frames_iter: Peekable<IntoIter<srt::SrtFrame>>,
-    font_file: font::FontFile,
-    osd_options: OsdOptions,
-    srt_options: SrtOptions,
-    srt_font: rusttype::Font<'a>,
+    osd_playback_speed_factor: f32,
     current_osd_frame: osd::Frame,
     current_srt_frame: Option<srt::SrtFrame>,
     ffmpeg_sender: Sender<FromFfmpegMessage>,
     ffmpeg_receiver: Receiver<ToFfmpegMessage>,
-    chroma_key: Option<Rgba<u8>>,
-    pad_4_3_to_16_9: bool,
-    glyph_cache: HashMap<u16, RgbaImage>,
 }
 
-impl<'a> FrameOverlayIter<'a> {
-    #[tracing::instrument(skip(decoder_iter, decoder_process, osd_frames, font_file), level = "debug")]
+impl FrameOverlayIter {
+    #[tracing::instrument(skip(decoder_iter, decoder_process, osd_frames), level = "debug")]
     pub fn new(
         decoder_iter: FfmpegIterator,
         decoder_process: FfmpegChild,
         osd_frames: Vec<osd::Frame>,
         srt_frames: Vec<srt::SrtFrame>,
-        font_file: font::FontFile,
-        srt_font: rusttype::Font<'a>,
-        osd_options: &OsdOptions,
-        srt_options: &SrtOptions,
+        osd_playback_speed_factor: f32,
         ffmpeg_sender: Sender<FromFfmpegMessage>,
         ffmpeg_receiver: Receiver<ToFfmpegMessage>,
-        chroma_key: Option<[f32; 3]>,
-        pad_4_3_to_16_9: bool,
     ) -> Self {
         let mut osd_frames_iter = osd_frames.into_iter();
         let mut srt_frames_iter = srt_frames.into_iter();
         let first_osd_frame = osd_frames_iter.next().unwrap();
         let first_srt_frame = srt_frames_iter.next();
-        let chroma_key =
-            chroma_key.map(|c| Rgba([(c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8, 255]));
         Self {
             decoder_iter,
             decoder_process,
             osd_frames_iter: osd_frames_iter.peekable(),
             srt_frames_iter: srt_frames_iter.peekable(),
-            font_file,
-            osd_options: osd_options.clone(),
-            srt_options: srt_options.clone(),
-            srt_font: srt_font.clone(),
+            osd_playback_speed_factor,
             current_osd_frame: first_osd_frame,
             current_srt_frame: first_srt_frame,
             ffmpeg_sender,
             ffmpeg_receiver,
-            chroma_key,
-            pad_4_3_to_16_9,
-            glyph_cache: HashMap::new(),
         }
     }
 }
 
-impl Iterator for FrameOverlayIter<'_> {
-    type Item = OutputVideoFrame;
+impl Iterator for FrameOverlayIter {
+    type Item = FrameRenderData;
 
     fn next(&mut self) -> Option<Self::Item> {
         //  On every iteration check if the render should be stopped
@@ -86,13 +70,13 @@ impl Iterator for FrameOverlayIter<'_> {
         }
 
         self.decoder_iter.find_map(|e| match e {
-            FfmpegEvent::OutputFrame(mut video_frame) => {
+            FfmpegEvent::OutputFrame(video_frame) => {
                 // For every video frame check if frame time is later than the next OSD frame time.
                 // If so advance the iterator over the OSD frames so we use the correct OSD frame
                 // for this video frame
                 if let Some(next_osd_frame) = self.osd_frames_iter.peek() {
                     let next_osd_frame_secs = next_osd_frame.time_millis as f32 / 1000.0;
-                    if video_frame.timestamp > next_osd_frame_secs * self.osd_options.osd_playback_speed_factor {
+                    if video_frame.timestamp > next_osd_frame_secs * self.osd_playback_speed_factor {
                         self.current_osd_frame = self.osd_frames_iter.next().unwrap();
                     }
                 }
@@ -104,52 +88,43 @@ impl Iterator for FrameOverlayIter<'_> {
                     }
                 }
 
-                let mut frame_image = if let Some(chroma_key) = self.chroma_key {
-                    RgbaImage::from_pixel(video_frame.width, video_frame.height, chroma_key)
-                } else {
-                    RgbaImage::from_raw(video_frame.width, video_frame.height, video_frame.data).unwrap()
-                };
-
-                // Internal letterboxing
-                let is_4_3 = (video_frame.width as f32 / video_frame.height as f32) < 1.5;
-                let mut x_offset = 0;
-                if self.pad_4_3_to_16_9 && is_4_3 {
-                    let final_width = video_frame.height * 16 / 9;
-                    let mut padded_image = RgbaImage::from_pixel(final_width, video_frame.height, Rgba([0, 0, 0, 255]));
-                    x_offset = (final_width - video_frame.width) / 2;
-                    image::imageops::overlay(&mut padded_image, &frame_image, x_offset as i64, 0);
-                    frame_image = padded_image;
-                    video_frame.width = final_width;
-                }
-
-                overlay_osd_cached(
-                    &mut frame_image,
-                    &self.current_osd_frame,
-                    &self.font_file,
-                    &self.osd_options,
-                    (x_offset as i32, 0),
-                    &mut self.glyph_cache,
-                );
-
-                if let Some(current_srt_frame) = &self.current_srt_frame {
-                    if let Some(srt_data) = &current_srt_frame.data {
-                        overlay_srt_data(
-                            &mut frame_image,
-                            srt_data,
-                            &self.srt_font,
-                            &self.srt_options,
-                            (x_offset as i32, 0),
-                        );
-                    }
-                }
-
-                video_frame.data = frame_image.into_raw();
-                Some(video_frame)
+                Some(FrameRenderData {
+                    video_frame,
+                    osd_frame: self.current_osd_frame.clone(),
+                    srt_frame: self.current_srt_frame.clone(),
+                })
             }
             other_event => {
-                handle_decoder_events(other_event, &self.ffmpeg_sender);
+                // We handle decoder events manually here to suppress Progress updates from the decoder.
+                // Since we have a parallel pipeline, the decoder is ahead of the encoder.
+                // We only want the UI to show the Encoder's progress (what is actually written).
+                match other_event {
+                    FfmpegEvent::Progress(_) => {} // Ignore decoder progress
+                    FfmpegEvent::Log(level, e) => {
+                        // Do NOT parse progress from logs here
+                        match level {
+                            LogLevel::Fatal => {
+                                tracing::error!("ffmpeg fatal error: {}", &e);
+                                self.ffmpeg_sender
+                                    .send(FromFfmpegMessage::DecoderFatalError(e))
+                                    .unwrap();
+                            }
+                            LogLevel::Warning | LogLevel::Error => {
+                                tracing::warn!("ffmpeg log: {}", e);
+                            }
+                            _ => {}
+                        }
+                    }
+                    FfmpegEvent::Done | FfmpegEvent::LogEOF => {
+                        self.ffmpeg_sender
+                            .send(FromFfmpegMessage::DecoderFinished)
+                            .unwrap();
+                    }
+                    _ => {}
+                }
                 None
             }
         })
     }
 }
+

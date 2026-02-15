@@ -4499,7 +4499,7 @@ dependencies = [
 
 [[package]]
 name = "walksnail-osd-tool"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "backend",
  "crossbeam-channel",

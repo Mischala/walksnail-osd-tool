@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2026-02-15
+
+### Added
+- Added "Select font folder" button and support for loading fonts from a user-specified directory.
+- Automatic detection and selection of "Ascent" specific fonts for both Betaflight and INAV.
+- Side panel auto-resize to accommodate long font filenames.
+
+### Changed
+- Parallel OSD rendering using all CPU cores (was single-threaded).Significantly improves rendering speed (FPS).
+
+### Removed
+
+- Removed embedded fonts as per SNEAKY_FPV request. You can download fonts from https://sites.google.com/view/sneaky-fpv/
+
 ## [0.4.5] - 2026-02-14
 
 ### Added

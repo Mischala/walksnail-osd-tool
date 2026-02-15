@@ -49,6 +49,7 @@ pub struct WalksnailOsdTool {
     pub artlynk_extraction_promise: Option<Promise<Result<Option<OsdFile>, OsdFileError>>>,
     pub app_version: String,
     pub target: String,
+    pub userfont_path: PathBuf,
 }
 
 impl WalksnailOsdTool {
@@ -77,6 +78,7 @@ impl WalksnailOsdTool {
 
         // Load last used font file
         let font_path = PathBuf::from(saved_settings.font_path);
+        let userfont_path = PathBuf::from(saved_settings.userfont_path);
         let font_file = font::FontFile::open(font_path).ok();
 
         let app_update = AppUpdate {
@@ -118,6 +120,7 @@ impl WalksnailOsdTool {
             app_update,
             app_version,
             target,
+            userfont_path,
             ..Default::default()
         }
     }
@@ -323,7 +326,7 @@ impl WalksnailOsdTool {
                         self.osd_preview.preview_frame = 1;
 
                         // After extraction, we need to re-trigger auto-selections that depend on OSD data
-                        self.auto_select_bundled_font();
+                        self.auto_select_font();
                         self.auto_center_horizontal();
 
                         self.update_osd_preview(ctx);

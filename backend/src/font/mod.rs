@@ -1,4 +1,4 @@
-pub mod bundled_fonts;
+pub mod font_picker;
 mod dimensions;
 mod error;
 mod font_file;
