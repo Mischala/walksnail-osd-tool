@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8] - 2026-02-16
+
+### Added
+- **Bilingual Support**: Added Polish translations for installation and troubleshooting instructions.
+- Detailed [Troubleshooting Guide](TROUBLESHOOTING.md) for Windows SmartScreen and macOS Gatekeeper.
+
+### Fixed
+- **macOS UI Hang**: Moved dependency checks to a background thread to prevent the application from hanging on startup when binaries are blocked by Gatekeeper.
+- **macOS Permissions**: Switched to native `zip` in CI to preserve executable bits in the app bundle.
+
+
 ## [0.4.7] - 2026-02-15
 
 ### Added

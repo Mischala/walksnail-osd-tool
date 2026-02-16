@@ -38,6 +38,7 @@ pub struct WalksnailOsdTool {
     pub render_status: RenderStatus,
     pub encoders: Vec<Encoder>,
     pub dependencies: Dependencies,
+    pub dependency_check_promise: Option<Promise<(bool, Vec<Encoder>)>>,
     pub render_settings: RenderSettings,
     pub osd_preview: OsdPreview,
     pub osd_options: OsdOptions,
@@ -58,13 +59,12 @@ pub struct WalksnailOsdTool {
 impl WalksnailOsdTool {
     pub fn new(
         ctx: &egui::Context,
-        dependencies_satisfied: bool,
         ffmpeg_path: PathBuf,
         ffprobe_path: PathBuf,
-        encoders: Vec<Encoder>,
         saved_settings: AppConfig,
         app_version: String,
         target: String,
+        dependency_check_promise: Promise<(bool, Vec<Encoder>)>,
         update_check_promise: Option<Promise<Result<Option<GitHubReleaseItem>, LookupError>>>,
     ) -> Self {
         set_style(ctx);
@@ -89,33 +89,17 @@ impl WalksnailOsdTool {
             ..Default::default()
         };
 
-        // Auto-select first detected H.264 hardware encoder, falling back to default (libx264)
-        let render_settings = {
-            let mut settings = RenderSettings::default();
-            // Find first detected H.264 hardware encoder
-            if let Some(hw_encoder) = encoders
-                .iter()
-                .find(|e| e.hardware && e.detected && e.codec == backend::ffmpeg::Codec::H264)
-            {
-                settings.encoder = hw_encoder.clone();
-                // Compute the index within the detected-only list (matching the UI ComboBox filter)
-                settings.selected_encoder_idx = encoders
-                    .iter()
-                    .filter(|e| e.detected)
-                    .position(|e| e == hw_encoder)
-                    .unwrap_or(0);
-            }
-            settings
-        };
+        let render_settings = RenderSettings::default();
 
         Self {
             dependencies: Dependencies {
-                dependencies_satisfied,
+                dependencies_satisfied: false, // Initially false until promise resolves
                 ffmpeg_path,
                 ffprobe_path,
                 userfont_path: userfont_path.clone(),
             },
-            encoders,
+            encoders: vec![],
+            dependency_check_promise: Some(dependency_check_promise),
             srt_font: Some(srt_font),
             osd_options,
             srt_options,
@@ -204,6 +188,7 @@ impl eframe::App for WalksnailOsdTool {
 
         self.receive_ffmpeg_message();
         self.poll_update_check();
+        self.poll_dependency_check();
         self.poll_artlynk_extraction(ctx);
 
         self.render_top_panel(ctx);
@@ -220,7 +205,9 @@ impl eframe::App for WalksnailOsdTool {
 
 impl WalksnailOsdTool {
     fn missing_dependencies_warning(&mut self, ctx: &egui::Context) {
-        if !self.dependencies.dependencies_satisfied || self.encoders.is_empty() {
+        if self.dependency_check_promise.is_none()
+            && (!self.dependencies.dependencies_satisfied || self.encoders.is_empty())
+        {
             egui::Window::new("Missing dependencies")
                 .default_pos(pos2(175.0, 200.0))
                 .fixed_size(vec2(350.0, 300.0))
@@ -382,6 +369,35 @@ impl WalksnailOsdTool {
                         self.app_update.window_open = true;
                     };
                 }
+            }
+        }
+    }
+
+    fn poll_dependency_check(&mut self) {
+        if let Some(promise) = &self.dependency_check_promise {
+            if let Some((satisfied, encoders)) = promise.ready() {
+                self.dependencies.dependencies_satisfied = *satisfied;
+                self.encoders = encoders.clone();
+
+                // Auto-select first detected H.264 hardware encoder, falling back to default (libx264)
+                if self.dependencies.dependencies_satisfied {
+                    if let Some(hw_encoder) = self
+                        .encoders
+                        .iter()
+                        .find(|e: &&Encoder| e.hardware && e.detected && e.codec == backend::ffmpeg::Codec::H264)
+                    {
+                        self.render_settings.encoder = hw_encoder.clone();
+                        // Compute the index within the detected-only list (matching the UI ComboBox filter)
+                        self.render_settings.selected_encoder_idx = self
+                            .encoders
+                            .iter()
+                            .filter(|e| e.detected)
+                            .position(|e| e == hw_encoder)
+                            .unwrap_or(0);
+                    }
+                }
+
+                self.dependency_check_promise = None;
             }
         }
     }

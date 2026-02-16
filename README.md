@@ -42,16 +42,14 @@ This is ideal for processing entire flight sessions without manual intervention.
 ### Windows
 Download and run the installer from the [latest release](https://github.com/ksielick/walksnail-osd-tool/releases).
 
+> [!NOTE]
+> If Windows Defender blocks the installer, click **"More info"** and then **"Run anyway"**.
+
 ### MacOS
 Download the app bundle for your processor architecture from the [latest release](https://github.com/ksielick/walksnail-osd-tool/releases) and drag it to your Applications folder.
 
-<details>
-<summary>Instructions for running the first time</summary>
-    
-The MacOS binaries provided by this project are not signed with a "Developer ID Certificate". When you try to run the app for the first time you may get a warning from MacOS that it may be malicious software, the developer cannot be verified, it may be damaged, etc. Close the warning, go to System Settings -> Privacy & Security and click "Open Anyway". This should only be required the first time you open the app.
-
-If you think this is annoying you can donate some money [here](https://www.buymeacoffee.com/avsaase) so I can pay Apple for a developer account.
-</details>
+> [!IMPORTANT]
+> If the app is marked as "damaged" or from an "unverified developer", please see the [Troubleshooting Guide](TROUBLESHOOTING.md).
 
 ### Linux
 The project builds on Ubuntu in CI but I don't know enough about packaging for Linux to make release binaries. For now you need to build from source.

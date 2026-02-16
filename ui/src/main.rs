@@ -35,19 +35,26 @@ fn main() -> Result<(), eframe::Error> {
         )
     );
 
-    // On startup check if ffmpeg and ffprove are available on the user's system
+    // On startup check if ffmpeg and ffprobe are available on the user's system
     // Then check which encoders are available
     let ffmpeg_path = util::get_dependency_path("ffmpeg");
     let ffprobe_path = util::get_dependency_path("ffprobe");
-    let dependencies_satisfied = ffmpeg_available(&ffmpeg_path) && ffprobe_available(&ffprobe_path);
-    let encoders = if dependencies_satisfied {
-        Encoder::get_available_encoders(&ffmpeg_path)
-    } else {
-        vec![]
-    };
+
+    let dep_ffmpeg_path = ffmpeg_path.clone();
+    let dep_ffprobe_path = ffprobe_path.clone();
+
+    let dependency_check_promise = Promise::spawn_thread("dependency_check", move || {
+        let satisfied = ffmpeg_available(&dep_ffmpeg_path) && ffprobe_available(&dep_ffprobe_path);
+        let encoders = if satisfied {
+            Encoder::get_available_encoders(&dep_ffmpeg_path)
+        } else {
+            vec![]
+        };
+        (satisfied, encoders)
+    });
 
     let config = AppConfig::load_or_create();
-    let promise = if config.app_update.check_on_startup {
+    let update_promise = if config.app_update.check_on_startup {
         Promise::spawn_thread("check_updates", check_updates).into()
     } else {
         None
@@ -75,14 +82,13 @@ fn main() -> Result<(), eframe::Error> {
         Box::new(move |cc| {
             Ok(Box::new(WalksnailOsdTool::new(
                 &cc.egui_ctx,
-                dependencies_satisfied,
                 ffmpeg_path,
                 ffprobe_path,
-                encoders,
                 config,
                 format!("v{} {}", env!("CARGO_PKG_VERSION"), build_info::get_version()),
                 build_info::get_target().to_string(),
-                promise,
+                dependency_check_promise,
+                update_promise,
             )))
         }),
     )
