@@ -45,6 +45,9 @@ impl WalksnailOsdTool {
     pub fn import_video_file(&mut self, file_handles: &[PathBuf]) {
         self.pending_batch_render = false;
         if let Some(video_file) = filter_file_with_extention(file_handles, "mp4") {
+            let old_video_file = self.video_file.clone();
+            let old_srt_file = self.srt_file.as_ref().map(|s| s.file_path.clone());
+
             self.video_file = Some(video_file.clone());
             self.video_info = VideoInfo::get(video_file, &self.dependencies.ffprobe_path).ok();
 
@@ -54,7 +57,34 @@ impl WalksnailOsdTool {
 
             // Try to load the matching OSD and SRT files
             self.import_osd_file(&[matching_file_with_extension(video_file, "osd")]);
-            self.import_srt_file(&[matching_file_with_extension(video_file, "srt")]);
+
+            let mut srt_to_import = matching_file_with_extension(video_file, "srt");
+            if let (Some(old_video), Some(old_srt)) = (old_video_file, old_srt_file) {
+                if old_video.file_stem() != old_srt.file_stem() {
+                    if let Some(next_srt) = find_next_srt_file(&old_srt) {
+                        tracing::info!(
+                            "Differently named video/SRT pair detected, loading next SRT in sequence: {:?}",
+                            next_srt
+                        );
+                        srt_to_import = next_srt;
+                    }
+                }
+            }
+            self.import_srt_file(&[srt_to_import]);
+
+            // Check if duration matches
+            if let (Some(video_info), Some(srt_file)) = (&self.video_info, &self.srt_file) {
+                let diff = (video_info.duration.as_secs_f32() - srt_file.duration.as_secs_f32()).abs();
+                if diff > 1.0 {
+                    tracing::warn!(
+                        "Duration mismatch between video ({:?}) and SRT ({:?})!",
+                        video_info.duration,
+                        srt_file.duration
+                    );
+                } else {
+                    tracing::info!("Video and SRT duration match: {:?}", video_info.duration);
+                }
+            }
 
             self.auto_select_font();
 
@@ -176,6 +206,26 @@ pub fn matching_file_with_extension(path: &PathBuf, extention: &str) -> PathBuf 
     let file_name = path.file_stem().unwrap();
     let parent = path.parent().unwrap();
     parent.join(file_name).with_extension(extention)
+}
+
+pub fn find_next_srt_file(current_srt: &Path) -> Option<PathBuf> {
+    if let Some(parent) = current_srt.parent() {
+        if let Ok(entries) = std::fs::read_dir(parent) {
+            let mut srt_files: Vec<PathBuf> = entries
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.is_file() && p.extension().is_some_and(|e| e.eq_ignore_ascii_case("srt")))
+                .collect();
+            srt_files.sort();
+
+            if let Some(idx) = srt_files.iter().position(|p| p == current_srt) {
+                if idx + 1 < srt_files.len() {
+                    return Some(srt_files[idx + 1].clone());
+                }
+            }
+        }
+    }
+    None
 }
 
 pub fn separator_with_space(ui: &mut Ui, space: f32) {

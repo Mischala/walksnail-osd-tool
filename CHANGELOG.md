@@ -4,11 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.8] - 2026-02-16
+## [0.4.9] - 2026-03-23
 
 ### Added
-- **Bilingual Support**: Added Polish translations for installation and troubleshooting instructions.
-- Detailed [Troubleshooting Guide](TROUBLESHOOTING.md) for Windows SmartScreen and macOS Gatekeeper.
+- **Sequenced SRT Matching**: Automatically match and load sequential SRT files even if their filenames differ from the corresponding MP4 files (e.g., `AvatarS0044.mp4` with `AvatarG0039.srt`).
+- **Duration Verification**: Visual warning (red text with `!`) in the UI when the loaded SRT file duration significantly differs from the video duration.
+- **Improved Batch Processing**: Enhanced logic for finding the next SRT file in sequence during batch rendering.
+
+
+## [0.4.8] - 2026-02-16
 
 ### Fixed
 - **macOS UI Hang**: Moved dependency checks to a background thread to prevent the application from hanging on startup when binaries are blocked by Gatekeeper.
