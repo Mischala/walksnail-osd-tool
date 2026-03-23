@@ -1,5 +1,5 @@
 use backend::font::FontType;
-use egui::{text::LayoutJob, Color32, CollapsingHeader, RichText, TextFormat, TextStyle, Ui};
+use egui::{text::LayoutJob, CollapsingHeader, Color32, RichText, TextFormat, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
 
 use super::WalksnailOsdTool;
@@ -264,11 +264,7 @@ impl WalksnailOsdTool {
                                         );
 
                                         if let Some(msg) = warning {
-                                            job.append(
-                                                " !",
-                                                5.0,
-                                                TextFormat::simple(font_id, Color32::RED),
-                                            );
+                                            job.append(" !", 5.0, TextFormat::simple(font_id, Color32::RED));
                                             ui.label(job).on_hover_text(RichText::new(msg).color(Color32::RED));
                                         } else {
                                             ui.label(job);
