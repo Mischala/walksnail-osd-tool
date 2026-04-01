@@ -530,7 +530,7 @@ impl WalksnailOsdTool {
             let scale_factor = self.osd_options.scale / 100.0;
             #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
             let scaled_char_width = (base_char_size.width() as f32 * scale_factor).round() as i32;
- 
+
             let frame = osd_file
                 .frames
                 .get(self.osd_preview.preview_frame as usize - 1)

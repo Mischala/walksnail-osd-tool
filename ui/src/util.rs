@@ -57,7 +57,11 @@ impl WalksnailOsdTool {
             self.video_info = VideoInfo::get(video_file, &self.dependencies.ffprobe_path).ok();
 
             if let Some(video_info) = &self.video_info {
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    clippy::cast_precision_loss
+                )]
                 let bitrate = (video_info.bitrate as f32 / 1_000_000.0).round() as u32;
                 self.render_settings.bitrate_mbps = bitrate;
             }

@@ -58,7 +58,11 @@ fn get_scaled_glyph(
 /// Overlay OSD glyphs onto a frame image (single-use, no caching).
 /// Used by the OSD preview path where only a single frame is rendered.
 #[inline]
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 pub fn overlay_osd(
     image: &mut RgbaImage,
     osd_frame: &osd::Frame,
