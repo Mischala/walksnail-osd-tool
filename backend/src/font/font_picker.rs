@@ -6,6 +6,7 @@ use crate::{
 };
 
 /// Attempt to find a matching font file in the given folder based on FC firmware and character size.
+#[must_use]
 pub fn find_font_in_folder(
     folder: &Path,
     firmware: &FcFirmware,
@@ -19,23 +20,20 @@ pub fn find_font_in_folder(
 
     let is_ascent = osd_filename.is_some_and(|f| f.to_lowercase().contains("ascent"));
 
-    let inav_prefix = if let Some(v) = version {
-        if is_ascent && (v.starts_with('8') || v.chars().next().is_some_and(|c| c.is_ascii_digit() && c >= '9')) {
-            "WS_INAV9_Ascent_"
-        } else if v.starts_with('8') {
-            "WS_INAV_8_"
-        } else if v.chars().next().is_some_and(|c| c.is_ascii_digit() && c >= '9') {
-            "WS_INAV9_"
-        } else {
-            "WS_INAV_"
-        }
-    } else {
-        if is_ascent {
-            "WS_INAV9_Ascent_"
-        } else {
-            "WS_INAV_"
-        }
-    };
+    let inav_prefix = version.map_or_else(
+        || if is_ascent { "WS_INAV9_Ascent_" } else { "WS_INAV_" },
+        |v| {
+            if is_ascent && (v.starts_with('8') || v.chars().next().is_some_and(|c| c.is_ascii_digit() && c >= '9')) {
+                "WS_INAV9_Ascent_"
+            } else if v.starts_with('8') {
+                "WS_INAV_8_"
+            } else if v.chars().next().is_some_and(|c| c.is_ascii_digit() && c >= '9') {
+                "WS_INAV9_"
+            } else {
+                "WS_INAV_"
+            }
+        },
+    );
 
     let btfl_prefix = if is_ascent { "WS_BTFL_Ascent_" } else { "WS_BFx4_" };
 
@@ -103,6 +101,7 @@ pub fn find_font_in_folder(
     None
 }
 
+#[must_use]
 pub fn find_compatible_fonts(
     folder: &Path,
     character_size: &CharacterSize,
@@ -120,7 +119,7 @@ pub fn find_compatible_fonts(
                     .unwrap_or_default();
 
                 let is_firmware_match = match firmware {
-                    Some(FcFirmware::Betaflight) | Some(FcFirmware::Kiss) | Some(FcFirmware::KissUltra) => {
+                    Some(FcFirmware::Betaflight | FcFirmware::Kiss | FcFirmware::KissUltra) => {
                         file_name.starts_with("WS_BTFL_")
                             || file_name.starts_with("WS_BFX4_")
                             || file_name.starts_with("BF_")

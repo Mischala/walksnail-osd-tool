@@ -58,8 +58,8 @@ impl RenderStatus {
         }
     }
 
-    pub fn update_from_ffmpeg_message(&mut self, message: FromFfmpegMessage, video_info: &VideoInfo) {
-        match (&self.status, &message) {
+    pub fn update_from_ffmpeg_message(&mut self, message: &FromFfmpegMessage, video_info: &VideoInfo) {
+        match (&self.status, message) {
             (
                 Status::InProgress { progress_pct, .. },
                 FromFfmpegMessage::DecoderFatalError(e) | FromFfmpegMessage::EncoderFatalError(e),
@@ -71,7 +71,9 @@ impl RenderStatus {
             }
 
             (Status::InProgress { .. }, FromFfmpegMessage::Progress(p)) => {
+                #[allow(clippy::cast_precision_loss)]
                 let frame = p.frame as f32;
+                #[allow(clippy::cast_precision_loss)]
                 let total_frames = video_info.total_frames as f32;
                 let progress_pct = frame / total_frames;
                 let frames_remaining = total_frames - frame;
@@ -94,18 +96,20 @@ impl RenderStatus {
             // In practice the encoder sometimes reaches EOF early so we only report an error when the encoder finishes
             // and progress, as reported by the decoder, is (near) zero.
             (Status::InProgress { progress_pct, .. }, FromFfmpegMessage::EncoderFinished) if *progress_pct < 0.001 => {
-                self.error("Encoder unexpectedly finished")
+                self.error("Encoder unexpectedly finished");
             }
 
             _ => {}
         }
     }
 
-    pub fn is_in_progress(&self) -> bool {
+    #[must_use]
+    pub const fn is_in_progress(&self) -> bool {
         matches!(self.status, Status::InProgress { .. })
     }
 
-    pub fn is_not_in_progress(&self) -> bool {
+    #[must_use]
+    pub const fn is_not_in_progress(&self) -> bool {
         !self.is_in_progress()
     }
 }

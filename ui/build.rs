@@ -14,8 +14,9 @@ fn main() {
         .ok()
         .and_then(|output| String::from_utf8(output.stdout).ok())
     {
+        let git_tag = git_tag.trim();
         if !git_tag.is_empty() {
-            println!("cargo:rustc-env=GIT_VERSION={}", git_tag);
+            println!("cargo:rustc-env=GIT_VERSION={git_tag}");
         }
     }
 
@@ -25,7 +26,8 @@ fn main() {
         .ok()
         .and_then(|output| String::from_utf8(output.stdout).ok())
     {
-        println!("cargo:rustc-env=GIT_COMMIT_HASH={}", short_commit);
+        let short_commit = short_commit.trim();
+        println!("cargo:rustc-env=GIT_COMMIT_HASH={short_commit}");
     }
 
     // Load icon data

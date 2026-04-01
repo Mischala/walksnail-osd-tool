@@ -20,6 +20,7 @@ pub struct OsdOptions {
 }
 
 impl OsdOptions {
+    #[must_use]
     pub fn get_mask(&self, position: &Coordinates<u32>) -> bool {
         self.masked_grid_positions.contains(position)
     }

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::util::Coordinates;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct SrtOptions {
     pub position: Coordinates<f32>,
     pub scale: f32,
@@ -23,7 +24,8 @@ pub struct SrtOptions {
 }
 
 impl SrtOptions {
-    pub fn walksnail_optimized() -> Self {
+    #[must_use]
+    pub const fn walksnail_optimized() -> Self {
         Self {
             position: Coordinates::new(1.5, 94.0),
             scale: 34.0,

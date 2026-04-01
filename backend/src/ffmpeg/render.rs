@@ -27,6 +27,12 @@ use crate::{
 };
 
 #[tracing::instrument(skip(osd_frames, srt_frames, font_file), err)]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_wrap
+)]
 pub fn start_video_render(
     ffmpeg_path: &PathBuf,
     input_video: &PathBuf,
@@ -40,7 +46,12 @@ pub fn start_video_render(
     video_info: &VideoInfo,
     render_settings: &RenderSettings,
 ) -> Result<(Sender<ToFfmpegMessage>, Receiver<FromFfmpegMessage>), FfmpegError> {
-    let mut decoder_process = spawn_decoder(ffmpeg_path, input_video, render_settings.encoder.hardware)?;
+    let mut decoder_process = spawn_decoder(
+        ffmpeg_path,
+        input_video,
+        render_settings.encoder.hardware,
+        video_info.frame_rate,
+    )?;
 
     let mut encoder_process = spawn_encoder(
         ffmpeg_path,
@@ -92,11 +103,6 @@ pub fn start_video_render(
     // Channel for parallel processed frames
     let (processed_tx, processed_rx) = crossbeam_channel::bounded::<(usize, Vec<u8>)>(32);
 
-    let font_file_worker = font_file.clone();
-    let srt_font_worker = srt_font.clone();
-    let osd_options_worker = osd_options.clone();
-    let srt_options_worker = srt_options.clone();
-
     // Spawn the parallel worker pool driver
     thread::Builder::new()
         .name("Parallel Render Driver".into())
@@ -123,7 +129,7 @@ pub fn start_video_render(
                             let mut padded_image =
                                 RgbaImage::from_pixel(final_width, video_frame.height, Rgba([0, 0, 0, 255]));
                             x_offset = (final_width - video_frame.width) / 2;
-                            image::imageops::overlay(&mut padded_image, &frame_image, x_offset as i64, 0);
+                            image::imageops::overlay(&mut padded_image, &frame_image, i64::from(x_offset), 0);
                             frame_image = padded_image;
                             video_frame.width = final_width;
                         }
@@ -131,8 +137,8 @@ pub fn start_video_render(
                         overlay_osd_cached(
                             &mut frame_image,
                             &render_data.osd_frame,
-                            &font_file_worker,
-                            &osd_options_worker,
+                            &font_file,
+                            &osd_options,
                             (x_offset as i32, 0),
                             glyph_cache,
                         );
@@ -142,8 +148,8 @@ pub fn start_video_render(
                                 overlay_srt_data(
                                     &mut frame_image,
                                     srt_data,
-                                    &srt_font_worker,
-                                    &srt_options_worker,
+                                    &srt_font,
+                                    &srt_options,
                                     (x_offset as i32, 0),
                                 );
                             }
@@ -205,19 +211,28 @@ pub fn spawn_decoder(
     ffmpeg_path: &PathBuf,
     input_video: &PathBuf,
     use_hwaccel: bool,
+    frame_rate: f32,
 ) -> Result<FfmpegChild, FfmpegError> {
     let mut cmd = FfmpegCommand::new_with_path(ffmpeg_path);
     cmd.create_no_window();
     if use_hwaccel {
         cmd.args(["-hwaccel", "auto"]);
     }
-    cmd.input(input_video.to_str().unwrap())
-        .args(["-f", "rawvideo", "-pix_fmt", "rgba", "-"]);
+    cmd.input(input_video.to_str().unwrap()).args([
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "-r",
+        &frame_rate.to_string(),
+        "-",
+    ]);
     let decoder = cmd.spawn()?;
     Ok(decoder)
 }
 
 #[tracing::instrument(skip(ffmpeg_path))]
+#[allow(clippy::cast_precision_loss)]
 pub fn spawn_encoder(
     ffmpeg_path: &PathBuf,
     width: u32,
@@ -266,7 +281,7 @@ pub fn spawn_encoder(
     encoder_command
         .pix_fmt("yuv420p")
         .codec_video(&video_encoder.name)
-        .args(["-b:v", &format!("{}M", bitrate_mbps)])
+        .args(["-b:v", &format!("{bitrate_mbps}M")])
         .args(&video_encoder.extra_args)
         .overwrite()
         .output(output_video.to_str().unwrap());
@@ -324,6 +339,10 @@ fn parse_val(s: &str, key: &str) -> Option<String> {
     }
 }
 
+/// Handle events from the encoder process.
+///
+/// # Panics
+/// Panics if the `ffmpeg_sender` channel is closed.
 fn handle_encoder_events(ffmpeg_event: FfmpegEvent, ffmpeg_sender: &Sender<FromFfmpegMessage>) {
     match ffmpeg_event {
         FfmpegEvent::Progress(p) => {
@@ -347,6 +366,10 @@ fn handle_encoder_events(ffmpeg_event: FfmpegEvent, ffmpeg_sender: &Sender<FromF
     }
 }
 
+/// Handle events from the decoder process.
+///
+/// # Panics
+/// Panics if the `ffmpeg_sender` channel is closed.
 pub fn handle_decoder_events(ffmpeg_event: FfmpegEvent, ffmpeg_sender: &Sender<FromFfmpegMessage>) {
     match ffmpeg_event {
         FfmpegEvent::Progress(p) => {

@@ -77,7 +77,7 @@ impl WalksnailOsdTool {
 
                 if self.batch_processing {
                     if let Some((current, total)) = self.batch_progress {
-                        ui.label(format!(": {}/{}", current, total));
+                        ui.label(format!(": {current}/{total}"));
                     }
                 }
 
@@ -90,15 +90,12 @@ impl WalksnailOsdTool {
                 {
                     ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                         ui.add_space(3.0);
-                        let time_remaining_string = if let Some(time_remaining) = time_remaining {
-                            format_minutes_seconds(time_remaining)
-                        } else {
-                            "––:––".into()
-                        };
+                        let time_remaining_string = time_remaining
+                            .as_ref()
+                            .map_or_else(|| "––:––".into(), format_minutes_seconds);
                         ui.label(
                             RichText::new(format!(
-                                "Time remaining: {}, fps: {:.1}, speed: {:.3}x",
-                                time_remaining_string, fps, speed
+                                "Time remaining: {time_remaining_string}, fps: {fps:.1}, speed: {speed:.3}x"
                             ))
                             .monospace(),
                         );

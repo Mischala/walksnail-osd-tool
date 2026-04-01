@@ -25,6 +25,7 @@ use crate::{
 };
 
 #[derive(Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct WalksnailOsdTool {
     pub config_changed: Option<Instant>,
     pub video_file: Option<PathBuf>,
@@ -117,6 +118,7 @@ impl WalksnailOsdTool {
 
 #[derive(Default)]
 pub struct Dependencies {
+    #[allow(clippy::struct_field_names)]
     pub dependencies_satisfied: bool,
     pub ffmpeg_path: PathBuf,
     pub ffprobe_path: PathBuf,
@@ -204,7 +206,7 @@ impl eframe::App for WalksnailOsdTool {
 }
 
 impl WalksnailOsdTool {
-    fn missing_dependencies_warning(&mut self, ctx: &egui::Context) {
+    fn missing_dependencies_warning(&self, ctx: &egui::Context) {
         if self.dependency_check_promise.is_none()
             && (!self.dependencies.dependencies_satisfied || self.encoders.is_empty())
         {
@@ -240,6 +242,7 @@ impl WalksnailOsdTool {
                 .frames
                 .get(self.osd_preview.preview_frame as usize - 1)
                 .unwrap();
+            #[allow(clippy::cast_precision_loss)]
             let timestamp = osd_frame.time_millis as f32 / 1000.0;
 
             let srt_frame = self.srt_file.as_ref().map(|srt_file| {
@@ -289,7 +292,7 @@ impl WalksnailOsdTool {
                 {
                     tx.send(ToFfmpegMessage::AbortRender).ok();
                 }
-                self.render_status.update_from_ffmpeg_message(message, video_info)
+                self.render_status.update_from_ffmpeg_message(&message, video_info);
             }
 
             if matches!(self.render_status.status, crate::render_status::Status::Completed)
@@ -367,7 +370,7 @@ impl WalksnailOsdTool {
                     if let Ok(Some(latest_release)) = result {
                         self.app_update.new_release = Some(latest_release.clone());
                         self.app_update.window_open = true;
-                    };
+                    }
                 }
             }
         }
@@ -438,7 +441,7 @@ impl WalksnailOsdTool {
                                 .changed()
                             {
                                 self.config_changed = Instant::now().into();
-                            };
+                            }
                         });
                     });
             }
@@ -478,10 +481,10 @@ impl WalksnailOsdTool {
                 Err(e) => {
                     self.render_status.status = crate::render_status::Status::Error {
                         progress_pct: 0.0,
-                        error: format!("Failed to start video render: {}", e),
-                    }
+                        error: format!("Failed to start video render: {e}"),
+                    };
                 }
-            };
+            }
         }
     }
 

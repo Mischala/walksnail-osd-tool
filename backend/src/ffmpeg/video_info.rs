@@ -17,7 +17,7 @@ pub struct VideoInfo {
 impl VideoInfo {
     #[tracing::instrument(ret)]
     pub fn get(file_path: &PathBuf, ffprobe_path: &PathBuf) -> Result<Self, VideoInfoError> {
-        let info = ffprobe::ffprobe(file_path, ffprobe_path.to_path_buf())?;
+        let info = ffprobe::ffprobe(file_path, ffprobe_path.clone())?;
         info.try_into()
     }
 }
@@ -28,7 +28,9 @@ impl TryFrom<FfProbe> for VideoInfo {
     fn try_from(value: FfProbe) -> Result<Self, Self::Error> {
         let stream = value.streams.first().ok_or(VideoInfoError::NoStream)?;
 
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let width = stream.width.ok_or(VideoInfoError::NoFrameWidth)? as u32;
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let height = stream.height.ok_or(VideoInfoError::NoFrameHeight)? as u32;
         let frame_rate = {
             let frame_rate_string = &stream.avg_frame_rate;
@@ -41,7 +43,8 @@ impl TryFrom<FfProbe> for VideoInfo {
                 .next()
                 .and_then(|num| num.parse::<f32>().ok())
                 .ok_or(VideoInfoError::NoFrameRate)?;
-            num / den
+            let fps = num / den;
+            round_to_standard_fps(fps)
         };
         let bitrate = stream
             .bit_rate
@@ -57,6 +60,7 @@ impl TryFrom<FfProbe> for VideoInfo {
                 .ok_or(VideoInfoError::NoDuration)?,
         );
 
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let total_frames = (frame_rate * duration.as_secs_f32()) as u32;
 
         Ok(Self {
@@ -68,4 +72,16 @@ impl TryFrom<FfProbe> for VideoInfo {
             total_frames,
         })
     }
+}
+
+fn round_to_standard_fps(fps: f32) -> f32 {
+    let standard_rates = [
+        23.976, 24.0, 25.0, 29.97, 30.0, 48.0, 50.0, 59.94, 60.0, 90.0, 100.0, 120.0,
+    ];
+    for &rate in &standard_rates {
+        if (fps - rate).abs() < (rate * 0.05) {
+            return rate;
+        }
+    }
+    fps
 }

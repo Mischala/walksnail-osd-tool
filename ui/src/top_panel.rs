@@ -51,7 +51,7 @@ impl WalksnailOsdTool {
             i.raw
                 .dropped_files
                 .iter()
-                .flat_map(|f| f.path.clone())
+                .filter_map(|f| f.path.clone())
                 .collect::<Vec<_>>()
         });
         if !file_handles.is_empty() {
@@ -126,6 +126,7 @@ impl WalksnailOsdTool {
             let total_width = side_panel_width + preview_width;
 
             // Calculate preview height based on video aspect ratio
+            #[allow(clippy::cast_precision_loss)]
             let aspect_ratio = video_info.width as f32 / video_info.height as f32;
             let preview_height = (preview_width - 20.0) / aspect_ratio;
 

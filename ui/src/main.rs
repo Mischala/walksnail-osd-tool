@@ -21,10 +21,11 @@ mod side_panel;
 mod top_panel;
 mod util;
 
+use util::build_info;
+
 fn main() -> Result<(), eframe::Error> {
     let _guard = util::init_tracing();
 
-    use util::build_info;
     tracing::info!(
         "{}",
         format!(

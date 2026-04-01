@@ -12,6 +12,7 @@ use crate::{
     osd, srt,
 };
 
+#[allow(clippy::struct_field_names)]
 pub struct FrameRenderData {
     pub video_frame: OutputVideoFrame,
     pub osd_frame: osd::Frame,
@@ -64,7 +65,7 @@ impl Iterator for FrameOverlayIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         //  On every iteration check if the render should be stopped
-        while let Ok(ToFfmpegMessage::AbortRender) = self.ffmpeg_receiver.try_recv() {
+        while matches!(self.ffmpeg_receiver.try_recv(), Ok(ToFfmpegMessage::AbortRender)) {
             self.decoder_process.quit().unwrap();
         }
 
@@ -74,6 +75,7 @@ impl Iterator for FrameOverlayIter {
                 // If so advance the iterator over the OSD frames so we use the correct OSD frame
                 // for this video frame
                 if let Some(next_osd_frame) = self.osd_frames_iter.peek() {
+                    #[allow(clippy::cast_precision_loss)]
                     let next_osd_frame_secs = next_osd_frame.time_millis as f32 / 1000.0;
                     if video_frame.timestamp > next_osd_frame_secs * self.osd_playback_speed_factor {
                         self.current_osd_frame = self.osd_frames_iter.next().unwrap();
@@ -98,7 +100,6 @@ impl Iterator for FrameOverlayIter {
                 // Since we have a parallel pipeline, the decoder is ahead of the encoder.
                 // We only want the UI to show the Encoder's progress (what is actually written).
                 match other_event {
-                    FfmpegEvent::Progress(_) => {} // Ignore decoder progress
                     FfmpegEvent::Log(level, e) => {
                         // Do NOT parse progress from logs here
                         match level {

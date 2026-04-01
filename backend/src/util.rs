@@ -4,7 +4,7 @@ use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_os = "windows")]
-pub const CREATE_NO_WINDOW: u32 = 0x08000000;
+pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Debug, Clone, Default, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Coordinates<T> {
@@ -13,7 +13,7 @@ pub struct Coordinates<T> {
 }
 
 impl<T> Coordinates<T> {
-    pub fn new(x: T, y: T) -> Self {
+    pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
 }

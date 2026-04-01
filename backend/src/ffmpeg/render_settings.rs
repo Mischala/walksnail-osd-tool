@@ -18,9 +18,9 @@ impl std::fmt::Display for UpscaleTarget {
             f,
             "{}",
             match self {
-                UpscaleTarget::None => "None",
-                UpscaleTarget::P1440 => "1440p",
-                UpscaleTarget::P2160 => "2160p",
+                Self::None => "None",
+                Self::P1440 => "1440p",
+                Self::P2160 => "2160p",
             }
         )
     }

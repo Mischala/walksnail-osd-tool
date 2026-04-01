@@ -33,6 +33,7 @@ impl OsdFile {
             .map(|frame_bytes| frame_bytes.try_into().unwrap())
             .collect::<Vec<Frame>>();
 
+        #[allow(clippy::cast_precision_loss)]
         let frame_interval = (frames.last().unwrap().time_millis - frames.first().unwrap().time_millis) as f32
             / (frames.len() - 1) as f32;
 
@@ -42,6 +43,7 @@ impl OsdFile {
         let mut osd_file = Self {
             file_path: path,
             fc_firmware,
+            #[allow(clippy::cast_possible_truncation)]
             frame_count: frames.len() as u32,
             duration,
             version: None,
@@ -55,6 +57,7 @@ impl OsdFile {
         Ok(osd_file)
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn detect_version(&self) -> Option<String> {
         for frame in &self.frames {
             let mut text = String::new();

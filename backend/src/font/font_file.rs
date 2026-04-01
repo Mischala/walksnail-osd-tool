@@ -37,6 +37,10 @@ impl FontFile {
         })
     }
 
+    /// Create a font file from raw bytes.
+    ///
+    /// # Errors
+    /// Returns a `FontFileError` if the image bytes are invalid or the dimensions are not supported.
     pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Self, FontFileError> {
         let font_image = image::load_from_memory(bytes)?;
         let (width, height) = font_image.dimensions();
@@ -53,6 +57,7 @@ impl FontFile {
         })
     }
 
+    #[must_use]
     pub fn get_character(&self, index: usize) -> Option<&RgbaImage> {
         self.characters.get(index)
     }

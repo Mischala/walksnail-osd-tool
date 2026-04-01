@@ -30,6 +30,9 @@ impl std::str::FromStr for SrtFrameData {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        static RE: std::sync::LazyLock<regex::Regex> =
+            std::sync::LazyLock::new(|| regex::Regex::new(r"(\w+):\s*([^:\s]+)").unwrap());
+
         let mut signal = None;
         let mut channel = None;
         let mut flight_time = None;
@@ -41,10 +44,6 @@ impl std::str::FromStr for SrtFrameData {
         let mut air_temp = None;
         let mut gnd_temp = None;
         let mut sty_mode = None;
-
-        lazy_static::lazy_static! {
-            static ref RE: regex::Regex = regex::Regex::new(r"(\w+):\s*([^:\s]+)").unwrap();
-        }
 
         for cap in RE.captures_iter(s) {
             let key = &cap[1];
@@ -186,7 +185,7 @@ mod tests {
                 gnd_temp: None,
                 sty_mode: None,
             }
-        )
+        );
     }
 
     #[test]
@@ -211,7 +210,7 @@ mod tests {
                 gnd_temp: None,
                 sty_mode: None,
             }
-        )
+        );
     }
 
     #[test]
@@ -255,7 +254,7 @@ mod tests {
                 gain: 0.0,
                 gain_exp: 0.0
             }
-        )
+        );
     }
 
     #[test]
@@ -267,7 +266,7 @@ mod tests {
             AscentSrtFrameData {
                 signal: 4,
                 channel: "AUTO".to_string(),
-                hz: 5805000,
+                hz: 5_805_000,
                 flight_time: 0,
                 sp: 19,
                 gp: 17,
@@ -277,7 +276,7 @@ mod tests {
                 bitrate_mbps: 25.0,
                 distance: 0
             }
-        )
+        );
     }
 
     #[test]
@@ -302,7 +301,7 @@ mod tests {
                 gnd_temp: Some(34),
                 sty_mode: Some(1),
             }
-        )
+        );
     }
 
     #[test]
@@ -313,7 +312,7 @@ mod tests {
             data = line.parse::<SrtFrameData>().ok();
         }
         let data = data.expect("Should parse as AscentSrtFrameData");
-        assert_eq!(data.hz, Some(5805000));
+        assert_eq!(data.hz, Some(5_805_000));
         assert_eq!(data.sp, Some(19));
         assert_eq!(data.gp, Some(17));
     }

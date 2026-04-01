@@ -22,23 +22,28 @@ use super::WalksnailOsdTool;
 use crate::util::build_info::Build;
 
 impl WalksnailOsdTool {
-    pub fn all_files_loaded(&self) -> bool {
+    #[must_use]
+    pub const fn all_files_loaded(&self) -> bool {
         self.video_loaded() && self.osd_loaded() && self.font_loaded()
     }
 
-    pub fn video_loaded(&self) -> bool {
+    #[must_use]
+    pub const fn video_loaded(&self) -> bool {
         self.video_file.is_some() && self.video_info.is_some()
     }
 
-    pub fn osd_loaded(&self) -> bool {
+    #[must_use]
+    pub const fn osd_loaded(&self) -> bool {
         self.osd_file.is_some()
     }
 
-    pub fn srt_loaded(&self) -> bool {
+    #[must_use]
+    pub const fn srt_loaded(&self) -> bool {
         self.srt_file.is_some()
     }
 
-    pub fn font_loaded(&self) -> bool {
+    #[must_use]
+    pub const fn font_loaded(&self) -> bool {
         self.font_file.is_some()
     }
 
@@ -52,7 +57,9 @@ impl WalksnailOsdTool {
             self.video_info = VideoInfo::get(video_file, &self.dependencies.ffprobe_path).ok();
 
             if let Some(video_info) = &self.video_info {
-                self.render_settings.bitrate_mbps = (video_info.bitrate as f32 / 1_000_000.0).round() as u32;
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
+                let bitrate = (video_info.bitrate as f32 / 1_000_000.0).round() as u32;
+                self.render_settings.bitrate_mbps = bitrate;
             }
 
             // Try to load the matching OSD and SRT files
@@ -146,7 +153,7 @@ impl WalksnailOsdTool {
                 self.srt_options = SrtOptions::default();
             }
 
-            self.srt_options.show_distance &= self.srt_file.as_ref().map(|s| s.has_distance).unwrap_or(true);
+            self.srt_options.show_distance &= self.srt_file.as_ref().is_none_or(|s| s.has_distance);
             self.config_changed = Some(Instant::now());
         }
     }
@@ -238,12 +245,12 @@ pub fn separator_with_space(ui: &mut Ui, space: f32) {
 pub fn format_minutes_seconds(duration: &Duration) -> String {
     let minutes = duration.as_secs() / 60;
     let seconds = duration.as_secs() % 60;
-    format!("{}:{:0>2}", minutes, seconds)
+    format!("{minutes}:{seconds:0>2}")
 }
 
 pub fn get_output_video_path(input_video_path: &Path) -> PathBuf {
     let input_video_file_name = input_video_path.file_stem().unwrap().to_string_lossy();
-    let output_video_file_name = format!("{}_with_osd.mp4", input_video_file_name);
+    let output_video_file_name = format!("{input_video_file_name}_with_osd.mp4");
     let mut output_video_path = input_video_path.parent().unwrap().to_path_buf();
     output_video_path.push(output_video_file_name);
     output_video_path
@@ -388,9 +395,9 @@ pub mod build_info {
     impl Display for Build {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
-                Build::Release { version, .. } => write!(f, "{version}"),
-                Build::Dev { commit } => write!(f, "dev ({commit})"),
-                Build::Unknown => write!(f, "Unknown"),
+                Self::Release { version, .. } => write!(f, "{version}"),
+                Self::Dev { commit } => write!(f, "dev ({commit})"),
+                Self::Unknown => write!(f, "Unknown"),
             }
         }
     }
@@ -399,18 +406,20 @@ pub mod build_info {
         let version: Option<Version> = option_env!("GIT_VERSION").and_then(|s| Version::parse(s).ok());
         let short_hash: Option<&'static str> = option_env!("GIT_COMMIT_HASH");
 
-        match (version, short_hash.map(|s| s.to_string())) {
+        match (version, short_hash.map(std::string::ToString::to_string)) {
             (Some(version), Some(commit)) => Build::Release { version, commit },
             (None, Some(commit)) => Build::Dev { commit },
             _ => Build::Unknown,
         }
     }
 
-    pub fn get_compiler() -> &'static str {
+    #[must_use]
+    pub const fn get_compiler() -> &'static str {
         env!("VERGEN_RUSTC_SEMVER")
     }
 
-    pub fn get_target() -> &'static str {
+    #[must_use]
+    pub const fn get_target() -> &'static str {
         env!("VERGEN_CARGO_TARGET_TRIPLE")
     }
 }

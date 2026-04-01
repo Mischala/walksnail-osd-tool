@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use super::error::OsdFileError;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FcFirmware {
     Betaflight,
     Inav,
@@ -16,14 +16,13 @@ impl TryFrom<&str> for FcFirmware {
     type Error = OsdFileError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        use FcFirmware::*;
         match value {
-            "BTFL" => Ok(Betaflight),
-            "INAV" => Ok(Inav),
-            "ARDU" => Ok(ArduPilot),
-            "KISS" => Ok(Kiss),
-            "ULTR" => Ok(KissUltra),
-            _ => Ok(Unknown),
+            "BTFL" => Ok(Self::Betaflight),
+            "INAV" => Ok(Self::Inav),
+            "ARDU" => Ok(Self::ArduPilot),
+            "KISS" => Ok(Self::Kiss),
+            "ULTR" => Ok(Self::KissUltra),
+            _ => Ok(Self::Unknown),
         }
     }
 }
@@ -43,12 +42,12 @@ impl Display for FcFirmware {
             f,
             "{}",
             match self {
-                FcFirmware::Betaflight => "BetaFlight",
-                FcFirmware::Inav => "INAV",
-                FcFirmware::ArduPilot => "ArduPilot",
-                FcFirmware::Kiss => "KISS",
-                FcFirmware::KissUltra => "KISS ULTRA",
-                FcFirmware::Unknown => "Unknown",
+                Self::Betaflight => "BetaFlight",
+                Self::Inav => "INAV",
+                Self::ArduPilot => "ArduPilot",
+                Self::Kiss => "KISS",
+                Self::KissUltra => "KISS ULTRA",
+                Self::Unknown => "Unknown",
             }
         )
     }

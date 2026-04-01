@@ -10,6 +10,8 @@ use crate::{
     osd::{self, OsdOptions},
 };
 
+#[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn get_character_size(width: u32, height: u32) -> CharacterSize {
     let is_4_3 = (width as f32 / height as f32) < 1.5;
     match height {
@@ -56,6 +58,7 @@ fn get_scaled_glyph(
 /// Overlay OSD glyphs onto a frame image (single-use, no caching).
 /// Used by the OSD preview path where only a single frame is rendered.
 #[inline]
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn overlay_osd(
     image: &mut RgbaImage,
     osd_frame: &osd::Frame,
@@ -76,12 +79,13 @@ pub fn overlay_osd(
             get_scaled_glyph(font, character.index, &base_character_size, scaled_width, scaled_height)
         {
             let grid_position = &character.grid_position;
+            #[allow(clippy::cast_possible_wrap, clippy::semicolon_if_nothing_returned)]
             overlay(
                 image,
                 &scaled_image,
                 (grid_position.x as i32 * scaled_width as i32 + osd_options.position.x + offset.0).into(),
                 (grid_position.y as i32 * scaled_height as i32 + osd_options.position.y + offset.1).into(),
-            )
+            );
         }
     }
 }
@@ -89,6 +93,12 @@ pub fn overlay_osd(
 /// Overlay OSD glyphs onto a frame image with a glyph cache.
 /// The cache persists across frames so each unique glyph index is resized only once.
 #[inline]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::implicit_hasher
+)]
 pub fn overlay_osd_cached(
     image: &mut RgbaImage,
     osd_frame: &osd::Frame,
@@ -113,6 +123,7 @@ pub fn overlay_osd_cached(
         });
 
         let grid_position = &character.grid_position;
+        #[allow(clippy::cast_possible_wrap)]
         overlay(
             image,
             scaled_image,

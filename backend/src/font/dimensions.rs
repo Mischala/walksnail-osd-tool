@@ -4,18 +4,18 @@ use serde::{Deserialize, Serialize};
 
 use super::FontFileError;
 
-pub(crate) const CHARACTER_WIDTH_4K: u32 = 72;
-pub(crate) const CHARACTER_HEIGHT_4K: u32 = 108;
-pub(crate) const CHARACTER_WIDTH_2K: u32 = 48;
-pub(crate) const CHARACTER_HEIGHT_2K: u32 = 72;
-pub(crate) const CHARACTER_WIDTH_LARGE: u32 = 36;
-pub(crate) const CHARACTER_HEIGHT_LARGE: u32 = 54;
-pub(crate) const CHARACTER_WIDTH_SMALL: u32 = 24;
-pub(crate) const CHARACTER_HEIGHT_SMALL: u32 = 36;
-pub(crate) const CHARACTER_WIDTH_RACE: u32 = 18;
-pub(crate) const CHARACTER_HEIGHT_RACE: u32 = 27;
+pub const CHARACTER_WIDTH_4K: u32 = 72;
+pub const CHARACTER_HEIGHT_4K: u32 = 108;
+pub const CHARACTER_WIDTH_2K: u32 = 48;
+pub const CHARACTER_HEIGHT_2K: u32 = 72;
+pub const CHARACTER_WIDTH_LARGE: u32 = 36;
+pub const CHARACTER_HEIGHT_LARGE: u32 = 54;
+pub const CHARACTER_WIDTH_SMALL: u32 = 24;
+pub const CHARACTER_HEIGHT_SMALL: u32 = 36;
+pub const CHARACTER_WIDTH_RACE: u32 = 18;
+pub const CHARACTER_HEIGHT_RACE: u32 = 27;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CharacterSize {
     Large,
     Small,
@@ -25,23 +25,25 @@ pub enum CharacterSize {
 }
 
 impl CharacterSize {
+    #[must_use]
     pub const fn width(&self) -> u32 {
         match self {
-            CharacterSize::Large => CHARACTER_WIDTH_LARGE,
-            CharacterSize::Small => CHARACTER_WIDTH_SMALL,
-            CharacterSize::XLarge => CHARACTER_WIDTH_2K,
-            CharacterSize::Ultra => CHARACTER_WIDTH_4K,
-            CharacterSize::Race => CHARACTER_WIDTH_RACE,
+            Self::Large => CHARACTER_WIDTH_LARGE,
+            Self::Small => CHARACTER_WIDTH_SMALL,
+            Self::XLarge => CHARACTER_WIDTH_2K,
+            Self::Ultra => CHARACTER_WIDTH_4K,
+            Self::Race => CHARACTER_WIDTH_RACE,
         }
     }
 
+    #[must_use]
     pub const fn height(&self) -> u32 {
         match self {
-            CharacterSize::Large => CHARACTER_HEIGHT_LARGE,
-            CharacterSize::Small => CHARACTER_HEIGHT_SMALL,
-            CharacterSize::XLarge => CHARACTER_HEIGHT_2K,
-            CharacterSize::Ultra => CHARACTER_HEIGHT_4K,
-            CharacterSize::Race => CHARACTER_HEIGHT_RACE,
+            Self::Large => CHARACTER_HEIGHT_LARGE,
+            Self::Small => CHARACTER_HEIGHT_SMALL,
+            Self::XLarge => CHARACTER_HEIGHT_2K,
+            Self::Ultra => CHARACTER_HEIGHT_4K,
+            Self::Race => CHARACTER_HEIGHT_RACE,
         }
     }
 }
@@ -52,17 +54,17 @@ impl Display for CharacterSize {
             f,
             "{}",
             match self {
-                CharacterSize::Large => "1080p",
-                CharacterSize::Small => "720p",
-                CharacterSize::XLarge => "2.7K",
-                CharacterSize::Ultra => "4K",
-                CharacterSize::Race => "540p",
+                Self::Large => "1080p",
+                Self::Small => "720p",
+                Self::XLarge => "2.7K",
+                Self::Ultra => "4K",
+                Self::Race => "540p",
             }
         )
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FontType {
     Standard,
     TwoPages,
@@ -71,17 +73,18 @@ pub enum FontType {
 }
 
 impl FontType {
-    pub fn pages(&self) -> u32 {
+    #[must_use]
+    pub const fn pages(&self) -> u32 {
         match self {
-            FontType::Standard => 1,
-            FontType::TwoPages => 2,
-            FontType::ThreePages => 3,
-            FontType::FourColor => 4,
+            Self::Standard => 1,
+            Self::TwoPages => 2,
+            Self::ThreePages => 3,
+            Self::FourColor => 4,
         }
     }
 }
 
-pub fn detect_dimensions(width: u32, height: u32) -> Result<(CharacterSize, FontType, u32), FontFileError> {
+pub const fn detect_dimensions(width: u32, height: u32) -> Result<(CharacterSize, FontType, u32), FontFileError> {
     let (size, r#type) = if width == CHARACTER_WIDTH_SMALL && (height / CHARACTER_HEIGHT_SMALL).is_multiple_of(256) {
         (CharacterSize::Small, FontType::Standard)
     } else if width == CHARACTER_WIDTH_LARGE && (height / CHARACTER_HEIGHT_LARGE).is_multiple_of(256) {

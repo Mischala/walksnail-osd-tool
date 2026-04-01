@@ -67,7 +67,7 @@ impl WalksnailOsdTool {
                                     if let (Some(width), Some(height)) =
                                         (video_info.map(|i| i.width), video_info.map(|i| i.height))
                                     {
-                                        ui.label(format!("{}x{}", width, height));
+                                        ui.label(format!("{width}x{height}"));
                                     } else {
                                         ui.label("-");
                                     }
@@ -80,7 +80,7 @@ impl WalksnailOsdTool {
                                 });
                                 row.col(|ui| {
                                     if let Some(frame_rate) = video_info.map(|i| i.frame_rate) {
-                                        ui.label(format!("{:.2} fps", frame_rate));
+                                        ui.label(format!("{frame_rate:.2} fps"));
                                     } else {
                                         ui.label("-");
                                     }
@@ -93,8 +93,9 @@ impl WalksnailOsdTool {
                                 });
                                 row.col(|ui| {
                                     if let Some(bitrate) = video_info.map(|i| i.bitrate) {
+                                        #[allow(clippy::cast_precision_loss)]
                                         let bitrate_mbps = bitrate as f32 / 1_000_000.0;
-                                        ui.label(format!("{:.2} Mbps", bitrate_mbps));
+                                        ui.label(format!("{bitrate_mbps:.2} Mbps"));
                                     } else {
                                         ui.label("-");
                                     }
@@ -146,8 +147,7 @@ impl WalksnailOsdTool {
                                             osd_file
                                                 .file_path
                                                 .file_name()
-                                                .map(|f| f.to_string_lossy())
-                                                .unwrap_or("-".into()),
+                                                .map_or_else(|| "-".to_string(), |f| f.to_string_lossy().into_owned()),
                                         );
                                     } else {
                                         ui.label("-");
@@ -226,8 +226,7 @@ impl WalksnailOsdTool {
                                             srt_file
                                                 .file_path
                                                 .file_name()
-                                                .map(|f| f.to_string_lossy())
-                                                .unwrap_or("-".into()),
+                                                .map_or_else(|| "-".to_string(), |f| f.to_string_lossy().into_owned()),
                                         );
                                     } else {
                                         ui.label("-");
@@ -279,6 +278,7 @@ impl WalksnailOsdTool {
             });
     }
 
+    #[allow(clippy::too_many_lines)]
     fn font_info(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         let file_loaded = self.font_file.is_some();
 
@@ -314,8 +314,7 @@ impl WalksnailOsdTool {
                                         (
                                             f.file_path
                                                 .file_name()
-                                                .map(|n| n.to_string_lossy().to_string())
-                                                .unwrap_or("-".into()),
+                                                .map_or_else(|| "-".to_string(), |n| n.to_string_lossy().to_string()),
                                             f.character_size.clone(),
                                             f.file_path.clone(),
                                         )

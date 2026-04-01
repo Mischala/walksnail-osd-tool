@@ -33,7 +33,7 @@ The tool supports an automatic batch processing mode. When enabled, the applicat
 1. Load and render the currently selected video.
 2. Once the render is complete, it will automatically look for the next `.mp4` file in the same folder.
 3. Automatically load matching OSD/SRT files and start the next render.
-   * **New in v0.4.9:** Supports sequenced SRT files even if their filenames differ from the video (e.g. `AvatarG0039.srt` match with `AvatarS0044.mp4`).
+   * **New in v0.5.0:** Artlynk (BetaFPV P1) DVR rendering improvements. Support for sequenced SRT files.
 4. Skip files that have already been processed (ending in `_with_osd.mp4`).
 
 This is ideal for processing entire flight sessions without manual intervention.

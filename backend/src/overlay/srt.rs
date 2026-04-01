@@ -4,6 +4,12 @@ use imageproc::drawing::{draw_text_mut, text_size};
 use crate::srt::{SrtFrameData, SrtOptions};
 
 #[inline]
+#[allow(
+    clippy::too_many_lines,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
 pub fn overlay_srt_data(
     image: &mut RgbaImage,
     srt_data: &SrtFrameData,
@@ -17,79 +23,79 @@ pub fn overlay_srt_data(
         if let Some(flight_time) = srt_data.flight_time {
             let minutes = flight_time / 60;
             let seconds = flight_time % 60;
-            segments.push(format!("Time:{}:{:0>2}", minutes, seconds));
+            segments.push(format!("Time:{minutes}:{seconds:0>2}"));
         }
     }
 
     if srt_options.show_sbat {
         if let Some(sky_bat) = srt_data.sky_bat {
-            segments.push(format!("SBat:{: >4.1}V", sky_bat));
+            segments.push(format!("SBat:{sky_bat: >4.1}V"));
         }
     }
 
     if srt_options.show_gbat {
         if let Some(ground_bat) = srt_data.ground_bat {
-            segments.push(format!("GBat:{: >4.1}V", ground_bat));
+            segments.push(format!("GBat:{ground_bat: >4.1}V"));
         }
     }
 
     if srt_options.show_signal {
         if let Some(signal) = srt_data.signal {
-            segments.push(format!("Signal:{}", signal));
+            segments.push(format!("Signal:{signal}"));
         }
     }
 
     if srt_options.show_channel {
         if let Some(channel) = &srt_data.channel {
-            segments.push(format!("CH:{}", channel));
+            segments.push(format!("CH:{channel}"));
         }
     }
 
     if srt_options.show_hz {
         if let Some(hz) = srt_data.hz {
-            segments.push(format!("Hz:{}", hz));
+            segments.push(format!("Hz:{hz}"));
         }
     }
 
     if srt_options.show_sp {
         if let Some(sp) = srt_data.sp {
-            segments.push(format!("Sp:{}", sp));
+            segments.push(format!("Sp:{sp}"));
         }
     }
 
     if srt_options.show_gp {
         if let Some(gp) = srt_data.gp {
-            segments.push(format!("Gp:{}", gp));
+            segments.push(format!("Gp:{gp}"));
         }
     }
 
     if srt_options.show_air_temp {
         if let Some(temp) = srt_data.air_temp {
-            segments.push(format!("AirTemp:{}", temp));
+            segments.push(format!("AirTemp:{temp}"));
         }
     }
 
     if srt_options.show_gnd_temp {
         if let Some(temp) = srt_data.gnd_temp {
-            segments.push(format!("GndTemp:{}", temp));
+            segments.push(format!("GndTemp:{temp}"));
         }
     }
 
     if srt_options.show_sty_mode {
         if let Some(mode) = srt_data.sty_mode {
-            segments.push(format!("STYMode:{}", mode));
+            segments.push(format!("STYMode:{mode}"));
         }
     }
 
     if srt_options.show_latency {
         if let Some(latency) = srt_data.latency {
-            segments.push(format!("Latency:{: >3}ms", latency));
+            segments.push(format!("Latency:{latency: >3}ms"));
         }
     }
 
     if srt_options.show_bitrate {
         if let Some(bitrate_mbps) = srt_data.bitrate_mbps {
-            segments.push(format!("Bitrate:{: >4.1}Mbps", bitrate_mbps));
+            segments.push(format!("Bitrate:{bitrate_mbps: >4.1}Mbps"));
         }
     }
 
@@ -97,9 +103,9 @@ pub fn overlay_srt_data(
         if let Some(distance) = srt_data.distance {
             if distance > 999 {
                 let km = distance as f32 / 1000.0;
-                segments.push(format!("Distance:{:.2}km", km));
+                segments.push(format!("Distance:{km:.2}km"));
             } else {
-                segments.push(format!("Distance:{: >3}m", distance));
+                segments.push(format!("Distance:{distance: >3}m"));
             }
         }
     }
@@ -118,6 +124,7 @@ pub fn overlay_srt_data(
     let y_start = (y_pos_pct * image_dimensions.1 as f32) as i32;
 
     let padding_px = (10.0 / 1080.0 * image_dimensions.1 as f32) as i32;
+    #[allow(clippy::cast_possible_wrap)]
     let max_width = (image_dimensions.0 as i32 - x_start - padding_px).max(100);
 
     let mut lines = Vec::new();
@@ -129,7 +136,7 @@ pub fn overlay_srt_data(
         let potential_line = if current_line.is_empty() {
             segment.clone()
         } else {
-            format!("{}{}{}", current_line, separator, segment)
+            format!("{current_line}{separator}{segment}")
         };
 
         let (total_width, _) = text_size(scale, font, &potential_line);
@@ -146,6 +153,7 @@ pub fn overlay_srt_data(
         lines.push(current_line);
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     let line_height = (scale_val * 1.2) as i32;
     let text_color = Rgba([240u8, 240u8, 240u8, 240u8]);
     let shadow_color = Rgba([0u8, 0u8, 0u8, 180u8]);

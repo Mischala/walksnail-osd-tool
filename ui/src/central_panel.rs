@@ -34,6 +34,7 @@ impl WalksnailOsdTool {
         });
     }
 
+    #[allow(clippy::too_many_lines)]
     fn osd_options(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         let mut changed = false;
 
@@ -82,6 +83,7 @@ impl WalksnailOsdTool {
                                 if let (Some(video_info), Some(osd_file), Some(_)) =
                                     (&self.video_info, &self.osd_file, &self.font_file)
                                 {
+                                    #[allow(clippy::cast_precision_loss)]
                                     let is_4_3 = (video_info.width as f32 / video_info.height as f32) < 1.5;
                                     let effective_width = if self.render_settings.pad_4_3_to_16_9 && is_4_3 {
                                         video_info.height * 16 / 9
@@ -90,23 +92,28 @@ impl WalksnailOsdTool {
                                     };
                                     let base_char_size = get_character_size(effective_width, video_info.height);
                                     let scale_factor = self.osd_options.scale / 100.0;
+                                    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
                                     let scaled_char_height = (base_char_size.height() as f32 * scale_factor).round() as i32;
 
                                     let frame = osd_file
                                         .frames
                                         .get(self.osd_preview.preview_frame as usize - 1)
                                         .unwrap();
+                                    #[allow(clippy::cast_possible_wrap)]
                                     let min_y = frame.glyphs.iter().map(|g| g.grid_position.y).min().unwrap() as i32;
+                                    #[allow(clippy::cast_possible_wrap)]
                                     let max_y = frame.glyphs.iter().map(|g| g.grid_position.y).max().unwrap() as i32;
                                     let pixel_range = (max_y - min_y + 1) * scaled_char_height;
-                                    self.osd_options.position.y = (video_info.height as i32 - pixel_range) / 2 - min_y * scaled_char_height;
-                                    changed |= true
+                                    #[allow(clippy::cast_possible_wrap)]
+                                    let y_pos = (video_info.height as i32 - pixel_range) / 2 - min_y * scaled_char_height;
+                                    self.osd_options.position.y = y_pos;
+                                    changed |= true;
                                 }
                             }
 
                             if ui.button("Reset").clicked() {
                                 self.osd_options.position.y = 0;
-                                changed |= true
+                                changed |= true;
                             }
                         });
                         ui.end_row();
@@ -147,7 +154,7 @@ impl WalksnailOsdTool {
                         ui.horizontal(|ui| {
                             changed |= ui
                                 .add(Checkbox::without_text(&mut self.osd_options.adjust_playback_speed))
-                                .changed()
+                                .changed();
                         });
                     });
             });
@@ -158,6 +165,7 @@ impl WalksnailOsdTool {
         }
     }
 
+    #[allow(clippy::too_many_lines, clippy::similar_names)]
     fn srt_options(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         let mut changed = false;
 
@@ -216,20 +224,20 @@ impl WalksnailOsdTool {
                         ));
                         let options = &mut self.srt_options;
                         let srt_file = self.srt_file.as_ref();
-                        let has_time = srt_file.map(|s| s.has_flight_time).unwrap_or(true);
-                        let has_sbat = srt_file.map(|s| s.has_sky_bat).unwrap_or(true);
-                        let has_gbat = srt_file.map(|s| s.has_ground_bat).unwrap_or(true);
-                        let has_signal = srt_file.map(|s| s.has_signal).unwrap_or(true);
-                        let has_latency = srt_file.map(|s| s.has_latency).unwrap_or(true);
-                        let has_bitrate = srt_file.map(|s| s.has_bitrate).unwrap_or(true);
-                        let has_distance = srt_file.map(|s| s.has_distance).unwrap_or(true);
-                        let has_channel = srt_file.map(|s| s.has_channel).unwrap_or(true);
-                        let has_hz = srt_file.map(|s| s.has_hz).unwrap_or(false);
-                        let has_sp = srt_file.map(|s| s.has_sp).unwrap_or(false);
-                        let has_gp = srt_file.map(|s| s.has_gp).unwrap_or(false);
-                        let has_air_temp = srt_file.map(|s| s.has_air_temp).unwrap_or(false);
-                        let has_gnd_temp = srt_file.map(|s| s.has_gnd_temp).unwrap_or(false);
-                        let has_sty_mode = srt_file.map(|s| s.has_sty_mode).unwrap_or(false);
+                        let has_time = srt_file.is_none_or(|s| s.has_flight_time);
+                        let has_sbat = srt_file.is_none_or(|s| s.has_sky_bat);
+                        let has_gbat = srt_file.is_none_or(|s| s.has_ground_bat);
+                        let has_signal = srt_file.is_none_or(|s| s.has_signal);
+                        let has_latency = srt_file.is_none_or(|s| s.has_latency);
+                        let has_bitrate = srt_file.is_none_or(|s| s.has_bitrate);
+                        let has_distance = srt_file.is_none_or(|s| s.has_distance);
+                        let has_channel = srt_file.is_none_or(|s| s.has_channel);
+                        let has_hz = srt_file.is_some_and(|s| s.has_hz);
+                        let has_sp = srt_file.is_some_and(|s| s.has_sp);
+                        let has_gp = srt_file.is_some_and(|s| s.has_gp);
+                        let has_air_temp = srt_file.is_some_and(|s| s.has_air_temp);
+                        let has_gnd_temp = srt_file.is_some_and(|s| s.has_gnd_temp);
+                        let has_sty_mode = srt_file.is_some_and(|s| s.has_sty_mode);
 
                         ui.horizontal_wrapped(|ui| {
                             if has_time {
@@ -292,6 +300,7 @@ impl WalksnailOsdTool {
                 if let (Some(handle), Some(video_info)) = (&self.osd_preview.texture_handle, &self.video_info) {
                     let padding = 20.0;
                     let preview_width = ui.available_width() - padding;
+                    #[allow(clippy::cast_precision_loss)]
                     let aspect_ratio = video_info.width as f32 / video_info.height as f32;
                     let preview_height = preview_width / aspect_ratio;
                     let texture_handle = handle.clone();
@@ -313,7 +322,7 @@ impl WalksnailOsdTool {
                         let preview_frame_slider = ui.add(
                             Slider::new(
                                 &mut self.osd_preview.preview_frame,
-                                1..=self.osd_file.as_ref().map(|f| f.frame_count).unwrap_or(1),
+                                1..=self.osd_file.as_ref().map_or(1, |f| f.frame_count),
                             )
                             .smart_aim(false),
                         );
@@ -325,8 +334,11 @@ impl WalksnailOsdTool {
             });
     }
 
+    #[allow(clippy::suboptimal_flops)]
     fn draw_grid(&mut self, ui: &mut Ui, ctx: &egui::Context, image_rect: Rect) {
+        #[allow(clippy::cast_precision_loss)]
         let video_width = self.video_info.as_ref().unwrap().width as f32;
+        #[allow(clippy::cast_precision_loss)]
         let video_height = self.video_info.as_ref().unwrap().height as f32;
 
         let top_left = image_rect.left_top();
@@ -340,7 +352,9 @@ impl WalksnailOsdTool {
 
         let painter = ui.painter_at(image_rect);
 
+        #[allow(clippy::cast_precision_loss)]
         let horizontal_offset = self.osd_options.position.x as f32 / video_width * preview_width;
+        #[allow(clippy::cast_precision_loss)]
         let vertical_offset = self.osd_options.position.y as f32 / video_height * preview_height;
 
         let response = ui
@@ -349,6 +363,7 @@ impl WalksnailOsdTool {
 
         for i in 0..53 {
             for j in 0..20 {
+                #[allow(clippy::cast_precision_loss)]
                 let rect = Rect::from_min_size(
                     top_left
                         + vec2(i as f32 * cell_width, j as f32 * cell_height)
@@ -383,6 +398,7 @@ impl WalksnailOsdTool {
         let line_stroke = Stroke::new(1.0, Color32::GRAY.gamma_multiply(0.5));
 
         for i in 0..=53 {
+            #[allow(clippy::cast_precision_loss)]
             let x = top_left.x + i as f32 * cell_width + horizontal_offset;
             let y_min = image_rect.y_range().min + vertical_offset;
             let y_max = image_rect.y_range().max + vertical_offset;
@@ -391,6 +407,7 @@ impl WalksnailOsdTool {
         for i in 0..=20 {
             let x_min = image_rect.x_range().min + horizontal_offset;
             let x_max = image_rect.x_range().max + horizontal_offset;
+            #[allow(clippy::cast_precision_loss)]
             let y = top_left.y + i as f32 * cell_height + vertical_offset;
             painter.hline(x_min..=x_max, y, line_stroke);
         }
@@ -421,8 +438,7 @@ impl WalksnailOsdTool {
                                 |i| {
                                     selectable_encoders
                                         .get(i)
-                                        .map(|e| e.to_string())
-                                        .unwrap_or("None".to_string())
+                                        .map_or_else(|| "None".to_string(), std::string::ToString::to_string)
                                 },
                             );
                             if selection.changed() {
@@ -472,7 +488,8 @@ impl WalksnailOsdTool {
                         }
                         ui.end_row();
 
-                        let is_4_3 = self.video_info.as_ref().map(|v| (v.width as f32 / v.height as f32) < 1.5).unwrap_or(false);
+                        #[allow(clippy::cast_precision_loss)]
+                        let is_4_3 = self.video_info.as_ref().is_some_and(|v| (v.width as f32 / v.height as f32) < 1.5);
                         if is_4_3 {
                             ui.label("Pad 4:3 to 16:9").on_hover_text(tooltip_text("Add black bars on the sides to transform 4:3 video into 16:9."));
                             let pad_changed = ui.add(Checkbox::without_text(&mut self.render_settings.pad_4_3_to_16_9)).changed();
@@ -502,6 +519,7 @@ impl WalksnailOsdTool {
     }
     pub fn auto_center_horizontal(&mut self) {
         if let (Some(video_info), Some(osd_file), Some(_)) = (&self.video_info, &self.osd_file, &self.font_file) {
+            #[allow(clippy::cast_precision_loss)]
             let is_4_3 = (video_info.width as f32 / video_info.height as f32) < 1.5;
             let effective_width = if self.render_settings.pad_4_3_to_16_9 && is_4_3 {
                 video_info.height * 16 / 9
@@ -510,16 +528,21 @@ impl WalksnailOsdTool {
             };
             let base_char_size = get_character_size(effective_width, video_info.height);
             let scale_factor = self.osd_options.scale / 100.0;
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
             let scaled_char_width = (base_char_size.width() as f32 * scale_factor).round() as i32;
-
+ 
             let frame = osd_file
                 .frames
                 .get(self.osd_preview.preview_frame as usize - 1)
                 .unwrap();
+            #[allow(clippy::cast_possible_wrap)]
             let min_x = frame.glyphs.iter().map(|g| g.grid_position.x).min().unwrap() as i32;
+            #[allow(clippy::cast_possible_wrap)]
             let max_x = frame.glyphs.iter().map(|g| g.grid_position.x).max().unwrap() as i32;
             let pixel_range = (max_x - min_x + 1) * scaled_char_width;
-            self.osd_options.position.x = (video_info.width as i32 - pixel_range) / 2 - min_x * scaled_char_width;
+            #[allow(clippy::cast_possible_wrap)]
+            let x_pos = (video_info.width as i32 - pixel_range) / 2 - min_x * scaled_char_width;
+            self.osd_options.position.x = x_pos;
         }
     }
 }

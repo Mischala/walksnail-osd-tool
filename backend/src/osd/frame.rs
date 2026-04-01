@@ -35,7 +35,9 @@ impl TryFrom<&[u8]> for Frame {
                     let glyph = Glyph {
                         index,
                         grid_position: GridPosition {
+                            #[allow(clippy::cast_possible_truncation)]
                             x: x as u32,
+                            #[allow(clippy::cast_possible_truncation)]
                             y: y as u32,
                         },
                     };

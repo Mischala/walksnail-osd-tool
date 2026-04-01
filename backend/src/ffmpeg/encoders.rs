@@ -3,7 +3,7 @@ use std::{fmt::Display, path::PathBuf, process::Command};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Codec {
     H264,
     H265,
@@ -12,13 +12,13 @@ pub enum Codec {
 impl Display for Codec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Codec::H264 => write!(f, "H.264"),
-            Codec::H265 => write!(f, "H.265"),
+            Self::H264 => write!(f, "H.264"),
+            Self::H265 => write!(f, "H.265"),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Encoder {
     pub name: String,
     pub codec: Codec,
@@ -46,44 +46,44 @@ impl Encoder {
     pub fn get_available_encoders(ffmpeg_path: &PathBuf) -> Vec<Self> {
         #[rustfmt::skip]
         let mut all_encoders = [
-            Encoder::new("libx264", Codec::H264, false),
-            Encoder::new("libx265", Codec::H265, false),
+            Self::new("libx264", Codec::H264, false),
+            Self::new("libx265", Codec::H265, false),
 
             #[cfg(target_os = "windows")]
-            Encoder::new("h264_amf", Codec::H264, true),
+            Self::new("h264_amf", Codec::H264, true),
 
             #[cfg(any(target_os = "windows", target_os = "linux"))]
-            Encoder::new("h264_nvenc", Codec::H264, true),
+            Self::new("h264_nvenc", Codec::H264, true),
 
             #[cfg(any(target_os = "windows", target_os = "linux"))]
-            Encoder::new("h264_qsv", Codec::H264, true),
+            Self::new("h264_qsv", Codec::H264, true),
 
             #[cfg(target_os = "linux")]
-            Encoder::new("h264_vaapi", Codec::H264, true),
+            Self::new("h264_vaapi", Codec::H264, true),
 
             #[cfg(target_os = "linux")]
-            Encoder::new("h264_v4l2m2m", Codec::H264, true),
+            Self::new("h264_v4l2m2m", Codec::H264, true),
 
             #[cfg(target_os = "macos")]
-            Encoder::new("h264_videotoolbox", Codec::H264, true),
+            Self::new("h264_videotoolbox", Codec::H264, true),
 
             #[cfg(target_os = "windows")]
-            Encoder::new("hevc_amf", Codec::H265, true),
+            Self::new("hevc_amf", Codec::H265, true),
 
             #[cfg(any(target_os = "windows", target_os = "linux"))]
-            Encoder::new("hevc_nvenc", Codec::H265, true),
+            Self::new("hevc_nvenc", Codec::H265, true),
 
             #[cfg(any(target_os = "windows", target_os = "linux"))]
-            Encoder::new("hevc_qsv", Codec::H265, true),
+            Self::new("hevc_qsv", Codec::H265, true),
 
             #[cfg(target_os = "linux")]
-            Encoder::new("hevc_vaapi", Codec::H265, true),
+            Self::new("hevc_vaapi", Codec::H265, true),
 
             #[cfg(target_os = "linux")]
-            Encoder::new("hevc_v4l2m2m", Codec::H265, true),
+            Self::new("hevc_v4l2m2m", Codec::H265, true),
 
             #[cfg(target_os = "macos")]
-            Encoder::new_with_extra_args(
+            Self::new_with_extra_args(
                 "hevc_videotoolbox", Codec::H265, true, 
                 &["-tag:v", "hvc1"] // Apple QuickTime player on Mac only supports hvc1
             ),
@@ -98,7 +98,7 @@ impl Encoder {
             .collect()
     }
 
-    fn ffmpeg_encoder_available(encoder: &Encoder, ffmpeg_path: &PathBuf) -> bool {
+    fn ffmpeg_encoder_available(encoder: &Self, ffmpeg_path: &PathBuf) -> bool {
         let mut command = Command::new(ffmpeg_path);
 
         command
@@ -122,10 +122,7 @@ impl Encoder {
         #[cfg(target_os = "windows")]
         std::os::windows::process::CommandExt::creation_flags(&mut command, crate::util::CREATE_NO_WINDOW);
 
-        match command.status() {
-            Ok(status) => status.success(),
-            Err(_) => false,
-        }
+        command.status().is_ok_and(|status| status.success())
     }
 }
 

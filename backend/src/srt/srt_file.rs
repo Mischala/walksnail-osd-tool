@@ -10,6 +10,7 @@ use super::{
 
 #[derive(Derivative)]
 #[derivative(Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct SrtFile {
     pub file_path: PathBuf,
     pub has_signal: bool,
@@ -55,7 +56,7 @@ impl SrtFile {
             .iter()
             .map(|i| -> Result<SrtFrame, SrtFileError> {
                 let debug_data = i.text.parse::<SrtDebugFrameData>().ok();
-                let mut data = i.text.parse::<AscentSrtFrameData>().ok().map(|a| a.into());
+                let mut data = i.text.parse::<AscentSrtFrameData>().ok().map(SrtFrameData::from);
 
                 if data.is_none() {
                     data = i.text.parse::<SrtFrameData>().ok();

@@ -23,8 +23,5 @@ fn command_available(command: &PathBuf) -> bool {
     #[cfg(target_os = "windows")]
     std::os::windows::process::CommandExt::creation_flags(&mut command, crate::util::CREATE_NO_WINDOW);
 
-    match command.status() {
-        Ok(status) => status.success(),
-        Err(_) => false,
-    }
+    command.status().is_ok_and(|status| status.success())
 }

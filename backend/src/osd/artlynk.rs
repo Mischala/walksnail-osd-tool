@@ -14,7 +14,7 @@ const GRID_WIDTH: usize = 53;
 const GRID_HEIGHT: usize = 20;
 
 /// Extract SEI User Data entries from a video file using ffmpeg showinfo filter.
-/// Returns a list of (pts_seconds, hex_string) tuples.
+/// Returns a list of (`pts_seconds`, `hex_string`) tuples.
 fn extract_sei_data(ffmpeg_path: &Path, video_path: &Path, max_duration: Option<Duration>) -> Vec<(f64, String)> {
     let mut command = Command::new(ffmpeg_path);
 
@@ -67,8 +67,9 @@ fn extract_sei_data(ffmpeg_path: &Path, video_path: &Path, max_duration: Option<
     entries
 }
 
-/// Parse an MSP DisplayPort payload from hex string.
-/// Returns a list of (row, col, glyph_index) tuples.
+/// Parse an MSP `DisplayPort` payload from hex string.
+/// Returns a list of (row, col, `glyph_index`) tuples.
+#[allow(clippy::cast_possible_truncation)]
 fn parse_msp_payload(hex_string: &str) -> Option<Vec<(u8, u8, u16)>> {
     // 1. Clean the string: remove address prefixes like "00000010:" and colons
     // showinfo often formats SEI data with address prefixes.
@@ -84,7 +85,7 @@ fn parse_msp_payload(hex_string: &str) -> Option<Vec<(u8, u8, u16)>> {
     }
 
     // 2. Remove all non-hex characters (except spaces which hex::decode handles poorly if not removed)
-    let clean_hex: String = cleaned.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    let clean_hex: String = cleaned.chars().filter(char::is_ascii_hexdigit).collect();
 
     // Convert to bytes
     let raw_bytes = match hex::decode(&clean_hex) {
@@ -135,9 +136,9 @@ fn parse_msp_payload(hex_string: &str) -> Option<Vec<(u8, u8, u16)>> {
                 if offset >= data.len() {
                     break;
                 }
-                let glyph_byte = data[offset] as u16;
+                let glyph_byte = u16::from(data[offset]);
                 // Character index is 10-bit: 2 bits from attribute, 8 bits from glyph_byte
-                let character = ((attribute as u16 & 0x03) << 8) | glyph_byte;
+                let character = ((u16::from(attribute) & 0x03) << 8) | glyph_byte;
                 active_glyphs.push((row, col.saturating_add(i as u8), character));
                 offset += 1;
             }
@@ -150,6 +151,7 @@ fn parse_msp_payload(hex_string: &str) -> Option<Vec<(u8, u8, u16)>> {
 }
 
 #[tracing::instrument(ret, err)]
+#[allow(clippy::cast_precision_loss)]
 pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<Option<OsdFile>, OsdFileError> {
     let filename = video_path
         .file_name()
@@ -184,11 +186,11 @@ pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<O
     let mut frames = Vec::new();
 
     for (pts, hex_line) in &entries {
-        let glyphs_raw = match parse_msp_payload(hex_line) {
-            Some(g) => g,
-            None => continue,
+        let Some(glyphs_raw) = parse_msp_payload(hex_line) else {
+            continue;
         };
 
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let ts_ms = (*pts * 1000.0) as u32;
 
         let glyphs: Vec<Glyph> = glyphs_raw
@@ -199,8 +201,8 @@ pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<O
             .map(|(row, col, idx)| Glyph {
                 index: idx,
                 grid_position: GridPosition {
-                    x: col as u32,
-                    y: row as u32,
+                    x: u32::from(col),
+                    y: u32::from(row),
                 },
             })
             .collect();
@@ -218,7 +220,8 @@ pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<O
         return Ok(None);
     }
 
-    let frame_count = frames.len() as u32;
+    #[allow(clippy::cast_possible_truncation)]
+    let frame_count = u32::try_from(frames.len()).unwrap_or(u32::MAX);
 
     let frame_interval = if frames.len() > 1 {
         (frames.last().unwrap().time_millis - frames.first().unwrap().time_millis) as f32 / (frames.len() - 1) as f32

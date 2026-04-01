@@ -13,9 +13,9 @@ pub struct Glyph {
 impl Display for Glyph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.index < 128 {
-            if let Some(char) = char::from_u32(self.index as u32) {
+            if let Some(char) = char::from_u32(u32::from(self.index)) {
                 if char.is_ascii() && !char.is_ascii_control() {
-                    write!(f, "{}", char)?;
+                    write!(f, "{char}")?;
                 } else {
                     write!(f, " ")?;
                 }

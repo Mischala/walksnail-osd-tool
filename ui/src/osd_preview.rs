@@ -7,6 +7,7 @@ use backend::{
 use image::RgbaImage;
 
 #[tracing::instrument(skip(osd_frame, srt_frame, font), level = "debug")]
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_wrap)]
 pub fn create_osd_preview(
     width: u32,
     height: u32,
@@ -56,6 +57,7 @@ pub fn create_osd_preview(
 }
 
 #[tracing::instrument(level = "debug")]
+#[allow(clippy::cast_possible_wrap)]
 pub fn calculate_horizontal_offset(width: u32, osd_frame: &osd::Frame, character_size: &font::CharacterSize) -> i32 {
     let min_x_grid = osd_frame.glyphs.iter().map(|g| g.grid_position.x).min().unwrap() as i32;
     let max_x_grid = osd_frame.glyphs.iter().map(|g| g.grid_position.x).max().unwrap() as i32;
@@ -65,6 +67,7 @@ pub fn calculate_horizontal_offset(width: u32, osd_frame: &osd::Frame, character
 }
 
 #[tracing::instrument(level = "debug")]
+#[allow(clippy::cast_possible_wrap)]
 pub fn calculate_vertical_offset(height: u32, osd_frame: &osd::Frame, character_size: &font::CharacterSize) -> i32 {
     let min_y_grid = osd_frame.glyphs.iter().map(|g| g.grid_position.y).min().unwrap() as i32;
     let max_y_grid = osd_frame.glyphs.iter().map(|g| g.grid_position.y).max().unwrap() as i32;
