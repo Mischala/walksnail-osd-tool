@@ -65,10 +65,14 @@ jobs:
 
       - name: Install cargo-wix
         if: ${{ matrix.targets.name == 'windows64' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo binstall cargo-wix --no-confirm --force
 
       - name: Install cargo-bundle
         if: ${{ matrix.targets.name == 'macos-intel' || matrix.targets.name == 'macos-arm'}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo binstall cargo-bundle --no-confirm --force
 
       - name: Build (Windows)
