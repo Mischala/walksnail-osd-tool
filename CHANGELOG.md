@@ -12,7 +12,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - **Artlynk Checksum Bottleneck**: Disabled `ffmpeg` checksum generation during Artlynk file data extraction, vastly speeding up OSD data parsing times.
 - **Batch Processing Synchronization**: Addressed a severe bug where batch processing would not wait for background OSD data extraction to finish before loading the next file in the folder, queuing them properly now.
-- **Duplicate Versions Display**: Removed a UI rendering artifact where the Walksnail OSD version string would show up exactly twice on the top-bar header in stable production builds.
 
 ## [0.5.0] - 2026-04-01
 
