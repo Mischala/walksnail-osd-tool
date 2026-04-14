@@ -297,6 +297,7 @@ impl WalksnailOsdTool {
 
             if matches!(self.render_status.status, crate::render_status::Status::Completed)
                 && self.batch_processing
+                && !self.pending_batch_render
                 && self.load_next_file()
             {
                 if self.all_files_loaded() {

@@ -24,10 +24,12 @@ fn extract_sei_data(ffmpeg_path: &Path, video_path: &Path, max_duration: Option<
     }
 
     command.args([
+        "-hwaccel",
+        "auto",
         "-i",
         video_path.to_str().unwrap_or(""),
         "-vf",
-        "showinfo",
+        "showinfo=checksum=false",
         "-f",
         "null",
         "-",

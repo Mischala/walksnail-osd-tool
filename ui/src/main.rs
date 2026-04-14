@@ -86,7 +86,11 @@ fn main() -> Result<(), eframe::Error> {
                 ffmpeg_path,
                 ffprobe_path,
                 config,
-                format!("v{} {}", env!("CARGO_PKG_VERSION"), build_info::get_version()),
+                match build_info::get_version() {
+                    build_info::Build::Release { version, .. } => format!("v{version}"),
+                    build_info::Build::Dev { commit } => format!("v{} dev ({commit})", env!("CARGO_PKG_VERSION")),
+                    build_info::Build::Unknown => format!("v{}", env!("CARGO_PKG_VERSION")),
+                },
                 build_info::get_target().to_string(),
                 dependency_check_promise,
                 update_promise,

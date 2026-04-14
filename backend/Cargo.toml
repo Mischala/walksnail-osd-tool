@@ -1,6 +1,6 @@
 [package]
 name = "backend"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 
 [dependencies]
@@ -21,6 +21,7 @@ serde = { version = "1.0.159", features = ["derive"] }
 srtparse = "0.2.0"
 thiserror = "1.0.38"
 tracing = "0.1.37"
+bytemuck = "1.25.0"
 
 [dev-dependencies]
 claims = "0.7.1"

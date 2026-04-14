@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use image::{
-    imageops::{overlay, resize, FilterType},
+    imageops::{resize, FilterType},
     RgbaImage,
 };
 
@@ -55,6 +55,57 @@ fn get_scaled_glyph(
     })
 }
 
+#[inline]
+pub fn fast_overlay_rgba(bottom: &mut RgbaImage, top: &RgbaImage, x: i64, y: i64) {
+    let bottom_width = bottom.width() as i64;
+    let bottom_height = bottom.height() as i64;
+    let top_width = top.width() as i64;
+    let top_height = top.height() as i64;
+
+    if x >= bottom_width || y >= bottom_height || x + top_width <= 0 || y + top_height <= 0 {
+        return;
+    }
+
+    let start_x = 0.max(-x);
+    let start_y = 0.max(-y);
+    let end_x = top_width.min(bottom_width - x);
+    let end_y = top_height.min(bottom_height - y);
+
+    let bottom_stride = (bottom_width as usize) * 4;
+    let top_stride = (top_width as usize) * 4;
+
+    let bottom_buf = bottom.as_mut();
+    let top_buf = top.as_ref();
+
+    for dy in start_y..end_y {
+        let bottom_y = y + dy;
+        let top_start = (dy as usize * top_stride) + (start_x as usize) * 4;
+        let bottom_start = (bottom_y as usize * bottom_stride) + ((x + start_x) as usize) * 4;
+        let len = ((end_x - start_x) as usize) * 4;
+
+        let top_slice = &top_buf[top_start..top_start + len];
+        let bottom_slice = &mut bottom_buf[bottom_start..bottom_start + len];
+
+        for i in (0..len).step_by(4) {
+            let alpha = top_slice[i + 3];
+            if alpha == 0 {
+                continue;
+            } else if alpha == 255 {
+                bottom_slice[i] = top_slice[i];
+                bottom_slice[i + 1] = top_slice[i + 1];
+                bottom_slice[i + 2] = top_slice[i + 2];
+                bottom_slice[i + 3] = 255;
+            } else {
+                let a = alpha as u16;
+                let inv_a = 255 - a;
+                bottom_slice[i] = ((top_slice[i] as u16 * a + bottom_slice[i] as u16 * inv_a) / 255) as u8;
+                bottom_slice[i + 1] = ((top_slice[i + 1] as u16 * a + bottom_slice[i + 1] as u16 * inv_a) / 255) as u8;
+                bottom_slice[i + 2] = ((top_slice[i + 2] as u16 * a + bottom_slice[i + 2] as u16 * inv_a) / 255) as u8;
+            }
+        }
+    }
+}
+
 /// Overlay OSD glyphs onto a frame image (single-use, no caching).
 /// Used by the OSD preview path where only a single frame is rendered.
 #[inline]
@@ -84,7 +135,7 @@ pub fn overlay_osd(
         {
             let grid_position = &character.grid_position;
             #[allow(clippy::cast_possible_wrap, clippy::semicolon_if_nothing_returned)]
-            overlay(
+            fast_overlay_rgba(
                 image,
                 &scaled_image,
                 (grid_position.x as i32 * scaled_width as i32 + osd_options.position.x + offset.0).into(),
@@ -128,7 +179,7 @@ pub fn overlay_osd_cached(
 
         let grid_position = &character.grid_position;
         #[allow(clippy::cast_possible_wrap)]
-        overlay(
+        fast_overlay_rgba(
             image,
             scaled_image,
             (grid_position.x as i32 * scaled_width as i32 + osd_options.position.x + offset.0).into(),
