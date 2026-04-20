@@ -87,6 +87,8 @@ jobs:
         if: ${{ matrix.targets.name == 'linux64'}}
 
         run: |
+          sudo apt-get update
+          sudo apt-get install libfuse-dev
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$(uname -m).AppImage -O /usr/local/bin/appimagetool
           chmod +x /usr/local/bin/appimagetool
 
@@ -143,7 +145,7 @@ jobs:
         if: ${{ matrix.targets.name == 'linux64'}}
         run: |
           mkdir -p walksnail-osd-tool/usr/bin
-          cp ${{ github.workspace }}/target/release/walksnail-osd-tool walksnail-osd-tool/usr/bin/
+          cp ${{ github.workspace }}/target/${{ matrix.targets.target }}/release/walksnail-osd-tool walksnail-osd-tool/usr/bin/walksnail-osd-tool
           cp ${{ github.workspace }}/ext/ffmpeg/${{ matrix.targets.name }}/ffmpeg walksnail-osd-tool/usr/bin/
           cp ${{ github.workspace }}/resources/icons/512x512.png walksnail-osd-tool/walksnail-osd-tool.png
           cp ${{ github.workspace }}/resources/icons/512x512.png walksnail-osd-tool/.DirIcon
@@ -157,10 +159,10 @@ jobs:
           EOF
           chmod +x walksnail-osd-tool/AppRun
 
-          cp ${{ github.workspace }}/resources/walksnail-osd-tool.desktop walksnail-osd-tool/
+          cp ${{ github.workspace }}/resources/walksnail-osd-tool.desktop walksnail-osd-tool/walksnail-osd-tool.desktop
 
           cd walksnail-osd-tool
-          appimagetool.AppImage .
+          ARCH=x86_64 appimagetool .
 
       - name: Save Linux artifact
         if: ${{ matrix.targets.name == 'linux64'}}
