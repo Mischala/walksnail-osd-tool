@@ -40,6 +40,14 @@ jobs:
               ffmpeg_filename: ffmpeg6arm.zip,
               ffprobe_filename: ffprobe6arm.zip,
             },
+            {
+              name: linux64,
+              fancy_name: linux64,
+              runner: ubuntu-latest,
+              target: x86_64-unknown-linux-gnu,
+              ffmpeg_filename: ffmpeg-linux-x64.zip,
+              ffprobe_filename: "",
+            }
           ]
     runs-on: ${{ matrix.targets.runner }}
     steps:
@@ -75,6 +83,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo binstall cargo-bundle --no-confirm --force
 
+      - name: Install appimagetool
+        if: ${{ matrix.targets.name == 'linux64'}}
+
+        run: |
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$(uname -m).AppImage -O /usr/local/bin/appimagetool
+          chmod +x /usr/local/bin/appimagetool
+
       - name: Build (Windows)
         if: ${{ matrix.targets.name == 'windows64'}}
         run: cargo build --release --package walksnail-osd-tool --features windows-installer
@@ -82,6 +97,10 @@ jobs:
       - name: Build (MacOS)
         if: ${{ matrix.targets.name == 'macos-intel' || matrix.targets.name == 'macos-arm'}}
         run: cargo build --release --package walksnail-osd-tool --target ${{ matrix.targets.target }} --features macos-app-bundle
+
+      - name: Build (Linux)
+        if: ${{ matrix.targets.name == 'linux64'}}
+        run: cargo build --release --package walksnail-osd-tool --target ${{ matrix.targets.target }}
 
       - name: Extract ffmpeg
         run: |
@@ -120,7 +139,38 @@ jobs:
           zip -r temp.zip Walksnail\ OSD\ Tool.app
           mv temp.zip ${{ github.workspace }}/_deploy/walksnail-osd-tool-${{ matrix.targets.fancy_name }}.zip
 
+      - name: Create Linux AppImage
+        if: ${{ matrix.targets.name == 'linux64'}}
+        run: |
+          mkdir -p walksnail-osd-tool/usr/bin
+          cp ${{ github.workspace }}/target/release/walksnail-osd-tool walksnail-osd-tool/usr/bin/
+          cp ${{ github.workspace }}/ext/ffmpeg/${{ matrix.targets.name }}/ffmpeg walksnail-osd-tool/usr/bin/
+          cp ${{ github.workspace }}/resources/icons/512x512.png walksnail-osd-tool/walksnail-osd-tool.png
+          cp ${{ github.workspace }}/resources/icons/512x512.png walksnail-osd-tool/.DirIcon
+
+          cat > walksnail-osd-tool/AppRun << 'EOF'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export PATH="${HERE}/usr/bin:${PATH}"
+          exec "${HERE}/usr/bin/walksnail-osd-tool" "$@"
+          EOF
+          chmod +x walksnail-osd-tool/AppRun
+
+          cp ${{ github.workspace }}/resources/walksnail-osd-tool.desktop walksnail-osd-tool/
+
+          cd walksnail-osd-tool
+          appimagetool.AppImage .
+
+      - name: Save Linux artifact
+        if: ${{ matrix.targets.name == 'linux64'}}
+        uses: actions/upload-artifact@v7
+        with:
+          name: walksnail-osd-tool-${{ matrix.targets.name }}
+          path: ${{ github.workspace }}/walksnail-osd-tool/*.AppImage
+
       - name: Save binaries
+        if: ${{ matrix.targets.name != 'linux64'}}
         uses: actions/upload-artifact@v7
         with:
           name: walksnail-osd-tool-${{ matrix.targets.name }}
