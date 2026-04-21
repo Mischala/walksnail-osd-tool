@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum Codec {
     H264,
     H265,
+    AV1,
 }
 
 impl Display for Codec {
@@ -14,6 +15,7 @@ impl Display for Codec {
         match self {
             Self::H264 => write!(f, "H.264"),
             Self::H265 => write!(f, "H.265"),
+            Self::AV1 => write!(f, "AV1"),
         }
     }
 }
@@ -84,9 +86,28 @@ impl Encoder {
 
             #[cfg(target_os = "macos")]
             Self::new_with_extra_args(
-                "hevc_videotoolbox", Codec::H265, true, 
+                "hevc_videotoolbox", Codec::H265, true,
                 &["-tag:v", "hvc1"] // Apple QuickTime player on Mac only supports hvc1
             ),
+
+            Self::new("libaom-av1", Codec::AV1, false),
+            Self::new("libsvtav1", Codec::AV1, false),
+            Self::new("librav1e", Codec::AV1, false),
+
+            #[cfg(target_os = "windows")]
+            Self::new("av1_amf", Codec::AV1, true),
+
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            Self::new("av1_nvenc", Codec::AV1, true),
+
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            Self::new("av1_qsv", Codec::AV1, true),
+
+            #[cfg(target_os = "linux")]
+            Self::new("av1_vaapi", Codec::AV1, true),
+
+            #[cfg(target_os = "linux")]
+            Self::new("av1_v4l2m2m", Codec::AV1, true),
         ];
 
         all_encoders
