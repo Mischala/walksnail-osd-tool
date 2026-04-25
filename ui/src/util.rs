@@ -215,7 +215,7 @@ impl WalksnailOsdTool {
                     osd_file.file_path.file_name().and_then(|n| n.to_str()),
                 ) {
                     // Only update if it's actually a different file
-                    if self.font_file.as_ref().map_or(true, |f| f.file_path != font.file_path) {
+                    if self.font_file.as_ref().is_none_or(|f| f.file_path != font.file_path) {
                         tracing::info!(
                             "Auto-selecting new font: {:?} (Old was: {:?})",
                             font.file_path,

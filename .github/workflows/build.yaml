@@ -24,9 +24,25 @@ jobs:
       - name: Check formatting
         run: cargo +nightly fmt --check
 
+  clippy:
+    name: Clippy
+    needs: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
   build:
     name: Build
-    needs: fmt
+    needs: [fmt, clippy]
     strategy:
       fail-fast: false
       matrix:
