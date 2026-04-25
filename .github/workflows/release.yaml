@@ -1,3 +1,4 @@
+# Release workflow for generating GitHub releases on version tags
 name: Release
 
 permissions:
