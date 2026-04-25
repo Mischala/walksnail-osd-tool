@@ -9,8 +9,24 @@ on:
   workflow_call:
 
 jobs:
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo +nightly fmt --check
+
   build:
     name: Build
+    needs: fmt
     strategy:
       fail-fast: false
       matrix:

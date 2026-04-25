@@ -172,7 +172,9 @@ impl std::str::FromStr for AscentDebugSrtFrameData {
             .unwrap()
         });
 
-        let caps = RE.captures(s).ok_or_else(|| "Failed to match AscentDebugSrt pattern".to_string())?;
+        let caps = RE
+            .captures(s)
+            .ok_or_else(|| "Failed to match AscentDebugSrt pattern".to_string())?;
 
         Ok(Self {
             hz: caps["hz"].parse().map_err(|e| format!("hz: {e}"))?,

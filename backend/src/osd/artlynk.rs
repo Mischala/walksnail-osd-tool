@@ -141,7 +141,7 @@ fn parse_msp_payload(hex_string: &str) -> Option<Vec<(u8, u8, u16)>> {
 
         // Glyph data starts after the 5-byte header
         let glyph_start = start_offset + 5;
-        
+
         // Glyph data ends before the next command's length byte
         // (The length byte is typically one byte before the next b6 03)
         let glyph_end = if i + 1 < command_offsets.len() {

@@ -198,7 +198,9 @@ impl WalksnailOsdTool {
                         }
                         size_mismatch
                     } else {
-                        tracing::info!("Auto-select: Auto-selected font loaded, allowing re-selection for better match");
+                        tracing::info!(
+                            "Auto-select: Auto-selected font loaded, allowing re-selection for better match"
+                        );
                         true
                     }
                 }
