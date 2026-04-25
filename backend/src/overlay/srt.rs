@@ -41,7 +41,17 @@ pub fn overlay_srt_data(
 
     if srt_options.show_signal {
         if let Some(signal) = srt_data.signal {
-            segments.push(format!("Signal:{signal}"));
+            if !srt_data.is_debug {
+                segments.push(format!("Signal:{signal}"));
+            }
+        }
+    }
+
+    if srt_options.show_mcs {
+        if let Some(signal) = srt_data.signal {
+            if srt_data.is_debug {
+                segments.push(format!("MCS:{signal}"));
+            }
         }
     }
 
@@ -78,6 +88,42 @@ pub fn overlay_srt_data(
     if srt_options.show_gnd_temp {
         if let Some(temp) = srt_data.gnd_temp {
             segments.push(format!("GndTemp:{temp}"));
+        }
+    }
+
+    if srt_options.show_stemp {
+        if let Some(temp) = srt_data.stemp {
+            segments.push(format!("Stemp:{temp}"));
+        }
+    }
+
+    if srt_options.show_gtemp {
+        if let Some(temp) = srt_data.gtemp {
+            segments.push(format!("Gtemp:{temp}"));
+        }
+    }
+
+    if srt_options.show_ssnr {
+        if let Some(ssnr) = srt_data.ssnr {
+            segments.push(format!("SSNR:{ssnr}"));
+        }
+    }
+
+    if srt_options.show_gsnr {
+        if let Some(gsnr) = srt_data.gsnr {
+            segments.push(format!("GSNR:{gsnr}"));
+        }
+    }
+
+    if srt_options.show_serr {
+        if let Some(serr) = srt_data.serr {
+            segments.push(format!("Serr:{serr}"));
+        }
+    }
+
+    if srt_options.show_gerr {
+        if let Some(gerr) = srt_data.gerr {
+            segments.push(format!("Gerr:{gerr}"));
         }
     }
 

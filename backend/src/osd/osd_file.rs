@@ -5,9 +5,9 @@ use derivative::Derivative;
 use super::{error::OsdFileError, fc_firmware::FcFirmware};
 use crate::osd::frame::Frame;
 
-const HEADER_BYTES: usize = 40;
-const FC_TYPE_BYTES: usize = 4;
-const FRAME_BYTES: usize = 2124;
+pub const HEADER_BYTES: usize = 40;
+pub const FC_TYPE_BYTES: usize = 4;
+pub const FRAME_BYTES: usize = 2124;
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -79,5 +79,23 @@ impl OsdFile {
             }
         }
         None
+    }
+
+    pub fn save(&self) -> Result<(), OsdFileError> {
+        let mut bytes = Vec::with_capacity(HEADER_BYTES + self.frames.len() * FRAME_BYTES);
+
+        // Header: 4 bytes FC Type + 36 bytes padding
+        let mut header = vec![0u8; HEADER_BYTES];
+        let fc_bytes = self.fc_firmware.as_bytes();
+        header[..fc_bytes.len()].copy_from_slice(fc_bytes);
+        bytes.extend_from_slice(&header);
+
+        // Frames
+        for frame in &self.frames {
+            bytes.extend_from_slice(&frame.as_bytes());
+        }
+
+        fs::write(&self.file_path, bytes)?;
+        Ok(())
     }
 }

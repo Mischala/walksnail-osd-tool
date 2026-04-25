@@ -55,6 +55,10 @@ impl WalksnailOsdTool {
 
             self.video_file = Some(video_file.clone());
             self.video_info = VideoInfo::get(video_file, &self.dependencies.ffprobe_path).ok();
+            self.osd_file = None;
+            self.srt_file = None;
+            self.artlynk_extraction_promise = None;
+            self.pending_batch_render = false;
 
             if let Some(video_info) = &self.video_info {
                 #[allow(
@@ -144,7 +148,6 @@ impl WalksnailOsdTool {
     pub fn import_srt_file(&mut self, file_handles: &[PathBuf]) {
         if let Some(srt_file_path) = filter_file_with_extention(file_handles, "srt") {
             self.srt_file = SrtFile::open(srt_file_path.clone()).ok();
-
             let file_name = srt_file_path
                 .file_name()
                 .map(|f| f.to_string_lossy().to_lowercase())
@@ -165,6 +168,7 @@ impl WalksnailOsdTool {
     pub fn import_font_file(&mut self, file_handles: &[PathBuf]) {
         if let Some(font_file_path) = filter_file_with_extention(file_handles, "png") {
             self.font_file = FontFile::open(font_file_path.clone()).ok();
+            self.font_manually_selected = true;
             self.config_changed = Some(Instant::now());
         }
     }
@@ -173,10 +177,31 @@ impl WalksnailOsdTool {
         if let (Some(video_info), Some(osd_file)) = (&self.video_info, &self.osd_file) {
             let character_size = backend::overlay::get_character_size(video_info.width, video_info.height);
 
-            // Only auto-select if no font loaded, or the current font is from the userfont folder
+            // Only auto-select if no font loaded, or the current font is not a good match.
+            // If the user manually selected a font, we only change it if the resolution is incompatible.
             let should_auto_select = match &self.font_file {
-                None => true,
-                Some(f) => f.file_path.starts_with(&self.userfont_path),
+                None => {
+                    tracing::info!("Auto-select: No font loaded, setting should_auto_select = true");
+                    true
+                }
+                Some(f) => {
+                    if self.font_manually_selected {
+                        let size_mismatch = f.character_size != character_size;
+                        if size_mismatch {
+                            tracing::info!(
+                                "Auto-select: Manual font loaded but size mismatch ({:?} != {:?}), setting should_auto_select = true",
+                                f.character_size,
+                                character_size
+                            );
+                        } else {
+                            tracing::info!("Auto-select: Manual font loaded and size matches, skipping auto-selection");
+                        }
+                        size_mismatch
+                    } else {
+                        tracing::info!("Auto-select: Auto-selected font loaded, allowing re-selection for better match");
+                        true
+                    }
+                }
             };
 
             if should_auto_select {
@@ -187,13 +212,16 @@ impl WalksnailOsdTool {
                     osd_file.version.as_deref(),
                     osd_file.file_path.file_name().and_then(|n| n.to_str()),
                 ) {
-                    tracing::info!(
-                        "Auto-selected font: {:?} for firmware {:?}, resolution {:?}",
-                        font.file_path,
-                        osd_file.fc_firmware,
-                        character_size
-                    );
-                    self.font_file = Some(font);
+                    // Only update if it's actually a different file
+                    if self.font_file.as_ref().map_or(true, |f| f.file_path != font.file_path) {
+                        tracing::info!(
+                            "Auto-selecting new font: {:?} (Old was: {:?})",
+                            font.file_path,
+                            self.font_file.as_ref().map(|f| &f.file_path)
+                        );
+                        self.font_file = Some(font);
+                        self.font_manually_selected = false;
+                    }
                 }
             }
         }

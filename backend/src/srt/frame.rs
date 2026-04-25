@@ -23,7 +23,14 @@ pub struct SrtFrameData {
     pub gp: Option<u8>,
     pub air_temp: Option<u32>,
     pub gnd_temp: Option<u32>,
+    pub ssnr: Option<f32>,
+    pub gsnr: Option<f32>,
+    pub stemp: Option<u32>,
+    pub gtemp: Option<u32>,
+    pub gerr: Option<u32>,
+    pub serr: Option<u32>,
     pub sty_mode: Option<u32>,
+    pub is_debug: bool,
 }
 
 impl std::str::FromStr for SrtFrameData {
@@ -60,6 +67,8 @@ impl std::str::FromStr for SrtFrameData {
                 "Distance" => distance = value.trim_end_matches('m').parse().ok(),
                 "AirTemp" => air_temp = value.parse().ok(),
                 "GndTemp" => gnd_temp = value.parse().ok(),
+                "Stemp" => air_temp = value.parse().ok(),
+                "Gtemp" => gnd_temp = value.parse().ok(),
                 "STYMode" => sty_mode = value.parse().ok(),
                 _ => {}
             }
@@ -79,7 +88,14 @@ impl std::str::FromStr for SrtFrameData {
             gp: None,
             air_temp,
             gnd_temp,
+            ssnr: None,
+            gsnr: None,
+            stemp: None,
+            gtemp: None,
+            gerr: None,
+            serr: None,
             sty_mode,
+            is_debug: false,
         })
     }
 }
@@ -116,7 +132,90 @@ impl From<AscentSrtFrameData> for SrtFrameData {
             gp: Some(ascent_data.gp),
             air_temp: None,
             gnd_temp: None,
+            ssnr: None,
+            gsnr: None,
+            stemp: None,
+            gtemp: None,
+            gerr: None,
+            serr: None,
             sty_mode: None,
+            is_debug: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AscentDebugSrtFrameData {
+    pub hz: u32,
+    pub signal: u8,
+    pub ssnr: f32,
+    pub gsnr: f32,
+    pub stemp: u32,
+    pub gtemp: u32,
+    pub latency: u32,
+    pub frame: u16,
+    pub serr: u32,
+    pub gerr: u32,
+    pub sp: u8,
+    pub gp: u8,
+    pub bitrate_mbps: f32,
+}
+
+impl std::str::FromStr for AscentDebugSrtFrameData {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(
+                r"Hz:(?P<hz>\d+)\s+MCS:(?P<mcs>\d+).*SSNR:(?P<ssnr>[\d.]+)\s+GSNR:(?P<gsnr>[\d.]+)\s+Stemp:(?P<stemp>\d+)\s+Gtemp:(?P<gtemp>\d+)\s+Delay:(?P<delay>\d+)ms\s+Frame:(?P<frame>\d+)\s+Serr:(?P<serr>\d+)\s+Gerr:(?P<gerr>\d+).*Sp=(?P<sp>\d+)\s+Gp=(?P<gp>\d+)\s+(?P<bitrate>[\d.]+)",
+            )
+            .unwrap()
+        });
+
+        let caps = RE.captures(s).ok_or_else(|| "Failed to match AscentDebugSrt pattern".to_string())?;
+
+        Ok(Self {
+            hz: caps["hz"].parse().map_err(|e| format!("hz: {e}"))?,
+            signal: caps["mcs"].parse().map_err(|e| format!("mcs: {e}"))?,
+            ssnr: caps["ssnr"].parse().map_err(|e| format!("ssnr: {e}"))?,
+            gsnr: caps["gsnr"].parse().map_err(|e| format!("gsnr: {e}"))?,
+            stemp: caps["stemp"].parse().map_err(|e| format!("stemp: {e}"))?,
+            gtemp: caps["gtemp"].parse().map_err(|e| format!("gtemp: {e}"))?,
+            latency: caps["delay"].parse().map_err(|e| format!("delay: {e}"))?,
+            frame: caps["frame"].parse().map_err(|e| format!("frame: {e}"))?,
+            serr: caps["serr"].parse().map_err(|e| format!("serr: {e}"))?,
+            gerr: caps["gerr"].parse().map_err(|e| format!("gerr: {e}"))?,
+            sp: caps["sp"].parse().map_err(|e| format!("sp: {e}"))?,
+            gp: caps["gp"].parse().map_err(|e| format!("gp: {e}"))?,
+            bitrate_mbps: caps["bitrate"].parse().map_err(|e| format!("bitrate: {e}"))?,
+        })
+    }
+}
+
+impl From<AscentDebugSrtFrameData> for SrtFrameData {
+    fn from(d: AscentDebugSrtFrameData) -> Self {
+        Self {
+            signal: Some(d.signal),
+            channel: None,
+            flight_time: None,
+            sky_bat: None,
+            ground_bat: None,
+            latency: Some(d.latency),
+            bitrate_mbps: Some(d.bitrate_mbps),
+            distance: None,
+            hz: Some(d.hz),
+            sp: Some(d.sp),
+            gp: Some(d.gp),
+            air_temp: Some(d.stemp),
+            gnd_temp: Some(d.gtemp),
+            ssnr: Some(d.ssnr),
+            gsnr: Some(d.gsnr),
+            stemp: Some(d.stemp),
+            gtemp: Some(d.gtemp),
+            gerr: Some(d.gerr),
+            serr: Some(d.serr),
+            sty_mode: None,
+            is_debug: true,
         }
     }
 }
@@ -183,7 +282,14 @@ mod tests {
                 gp: None,
                 air_temp: None,
                 gnd_temp: None,
+                ssnr: None,
+                gsnr: None,
+                stemp: None,
+                gtemp: None,
+                gerr: None,
+                serr: None,
                 sty_mode: None,
+                is_debug: false,
             }
         );
     }
@@ -208,7 +314,14 @@ mod tests {
                 gp: None,
                 air_temp: None,
                 gnd_temp: None,
+                ssnr: None,
+                gsnr: None,
+                stemp: None,
+                gtemp: None,
+                gerr: None,
+                serr: None,
                 sty_mode: None,
+                is_debug: false,
             }
         );
     }
@@ -299,7 +412,14 @@ mod tests {
                 gp: None,
                 air_temp: Some(49),
                 gnd_temp: Some(34),
+                ssnr: None,
+                gsnr: None,
+                stemp: None,
+                gtemp: None,
+                gerr: None,
+                serr: None,
                 sty_mode: Some(1),
+                is_debug: false,
             }
         );
     }
