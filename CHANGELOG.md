@@ -7,9 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.5.2] - 2026-04-25
 
 ### Added
-- **Walksnail Firmware 2.0.5 Support**: Implemented a robust, search-based OSD parser that handles the new variable-length command format in 2.0.5+ DVR files.
+- **Artlynk Firmware 2.0.5 Support**: Implemented a robust, search-based OSD parser that handles the new variable-length command format in 2.0.5+ DVR files.
 - **OSD Caching and Persistence**: Extracted OSD data is now automatically saved to a `.osd` file in the same directory as the video. These files are reloaded instantly on subsequent imports, eliminating the need for expensive re-scans.
 - **Expanded Telemetry**: Added support for Ascent debug telemetry fields in SRT data (SSNR, GSNR, Stemp, Gtemp, Gerr, Serr).
+- **Linux AppImage Support**: Added official support for Linux via AppImage builds, including integrated FFmpeg binaries (contributed by @Mischala).
+- **AV1 Encoder Support**: Added support for AV1 hardware encoders for improved video quality and efficiency (contributed by @Mischala).
+
+### Fixed
+- **Batch Processing Reliability**: Resolved a logic issue where batch processing would spam log messages and fail to reset its state correctly after the last file was processed.
+- **Improved SRT Parsing**: Enhanced regex-based parsing for debug SRT files to handle variable whitespace patterns more reliably.
 
 ## [0.5.1] - 2026-04-14
 
