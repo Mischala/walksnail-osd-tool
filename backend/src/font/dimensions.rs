@@ -84,7 +84,7 @@ impl FontType {
     }
 }
 
-pub const fn detect_dimensions(width: u32, height: u32) -> Result<(CharacterSize, FontType, u32), FontFileError> {
+pub fn detect_dimensions(width: u32, height: u32) -> Result<(CharacterSize, FontType, u32), FontFileError> {
     let (size, r#type) = if width == CHARACTER_WIDTH_SMALL && (height / CHARACTER_HEIGHT_SMALL).is_multiple_of(256) {
         (CharacterSize::Small, FontType::Standard)
     } else if width == CHARACTER_WIDTH_LARGE && (height / CHARACTER_HEIGHT_LARGE).is_multiple_of(256) {

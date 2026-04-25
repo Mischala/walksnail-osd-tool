@@ -26,6 +26,13 @@ pub struct SrtFile {
     pub has_gp: bool,
     pub has_air_temp: bool,
     pub has_gnd_temp: bool,
+    pub has_ssnr: bool,
+    pub has_gsnr: bool,
+    pub has_stemp: bool,
+    pub has_gtemp: bool,
+    pub has_gerr: bool,
+    pub has_serr: bool,
+    pub has_mcs: bool,
     pub has_sty_mode: bool,
     pub has_debug: bool,
     pub duration: Duration,
@@ -49,6 +56,13 @@ impl SrtFile {
         let mut has_gp = false;
         let mut has_air_temp = false;
         let mut has_gnd_temp = false;
+        let mut has_ssnr = false;
+        let mut has_gsnr = false;
+        let mut has_stemp = false;
+        let mut has_gtemp = false;
+        let mut has_gerr = false;
+        let mut has_serr = false;
+        let mut has_mcs = false;
         let mut has_sty_mode = false;
         let mut has_debug = false;
 
@@ -56,7 +70,15 @@ impl SrtFile {
             .iter()
             .map(|i| -> Result<SrtFrame, SrtFileError> {
                 let debug_data = i.text.parse::<SrtDebugFrameData>().ok();
-                let mut data = i.text.parse::<AscentSrtFrameData>().ok().map(SrtFrameData::from);
+                let mut is_debug_ascent = false;
+                let mut data = i.text.parse::<super::frame::AscentDebugSrtFrameData>().ok().map(|d| {
+                    is_debug_ascent = true;
+                    SrtFrameData::from(d)
+                });
+
+                if data.is_none() {
+                    data = i.text.parse::<AscentSrtFrameData>().ok().map(SrtFrameData::from);
+                }
 
                 if data.is_none() {
                     data = i.text.parse::<SrtFrameData>().ok();
@@ -79,6 +101,13 @@ impl SrtFile {
                     has_gp |= data.gp.is_some();
                     has_air_temp |= data.air_temp.is_some();
                     has_gnd_temp |= data.gnd_temp.is_some();
+                    has_ssnr |= data.ssnr.is_some();
+                    has_gsnr |= data.gsnr.is_some();
+                    has_stemp |= data.stemp.is_some();
+                    has_gtemp |= data.gtemp.is_some();
+                    has_gerr |= data.gerr.is_some();
+                    has_serr |= data.serr.is_some();
+                    has_mcs |= is_debug_ascent;
                     has_sty_mode |= data.sty_mode.is_some();
                 }
 
@@ -108,6 +137,13 @@ impl SrtFile {
             has_gp,
             has_air_temp,
             has_gnd_temp,
+            has_ssnr,
+            has_gsnr,
+            has_stemp,
+            has_gtemp,
+            has_gerr,
+            has_serr,
+            has_mcs,
             has_sty_mode,
             has_debug,
             duration,

@@ -20,6 +20,13 @@ pub struct SrtOptions {
     pub show_gp: bool,
     pub show_air_temp: bool,
     pub show_gnd_temp: bool,
+    pub show_ssnr: bool,
+    pub show_gsnr: bool,
+    pub show_stemp: bool,
+    pub show_gtemp: bool,
+    pub show_gerr: bool,
+    pub show_serr: bool,
+    pub show_mcs: bool,
     pub show_sty_mode: bool,
 }
 
@@ -42,6 +49,13 @@ impl SrtOptions {
             show_gp: true,
             show_air_temp: false,
             show_gnd_temp: false,
+            show_ssnr: true,
+            show_gsnr: true,
+            show_stemp: true,
+            show_gtemp: true,
+            show_gerr: true,
+            show_serr: true,
+            show_mcs: true,
             show_sty_mode: false,
         }
     }
@@ -65,6 +79,13 @@ impl Default for SrtOptions {
             show_gp: false,
             show_air_temp: true,
             show_gnd_temp: true,
+            show_ssnr: false,
+            show_gsnr: false,
+            show_stemp: false,
+            show_gtemp: false,
+            show_gerr: false,
+            show_serr: false,
+            show_mcs: false,
             show_sty_mode: false,
         }
     }

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use super::{
     error::OsdFileError,
     glyph::{Glyph, GridPosition},
+    osd_file,
 };
 
 const TIMESTAMP_BYTES: usize = 4;
@@ -46,5 +47,26 @@ impl TryFrom<&[u8]> for Frame {
             })
             .collect();
         Ok(Self { time_millis, glyphs })
+    }
+}
+
+impl Frame {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(osd_file::FRAME_BYTES);
+        bytes.extend_from_slice(&self.time_millis.to_le_bytes());
+
+        let mut grid = vec![0u16; GRID_WIDTH * _GRID_HEIGHT];
+        for glyph in &self.glyphs {
+            let idx = (glyph.grid_position.y as usize * GRID_WIDTH) + glyph.grid_position.x as usize;
+            if idx < grid.len() {
+                grid[idx] = glyph.index;
+            }
+        }
+
+        for index in grid {
+            bytes.extend_from_slice(&index.to_le_bytes());
+        }
+
+        bytes
     }
 }

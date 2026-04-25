@@ -55,6 +55,7 @@ pub struct WalksnailOsdTool {
     pub batch_processing: bool,
     pub batch_progress: Option<(usize, usize)>,
     pub pending_batch_render: bool,
+    pub font_manually_selected: bool,
 }
 
 impl WalksnailOsdTool {
@@ -81,6 +82,7 @@ impl WalksnailOsdTool {
         let osd_options = saved_settings.osd_options;
 
         // Load last used font file
+        let has_saved_font = !saved_settings.font_path.is_empty();
         let font_path = PathBuf::from(saved_settings.font_path);
         let userfont_path = PathBuf::from(saved_settings.userfont_path);
         let font_file = font::FontFile::open(font_path).ok();
@@ -111,6 +113,7 @@ impl WalksnailOsdTool {
             target,
             userfont_path,
             batch_processing: saved_settings.batch_processing,
+            font_manually_selected: has_saved_font,
             ..Default::default()
         }
     }
@@ -298,13 +301,16 @@ impl WalksnailOsdTool {
             if matches!(self.render_status.status, crate::render_status::Status::Completed)
                 && self.batch_processing
                 && !self.pending_batch_render
-                && self.load_next_file()
             {
-                if self.all_files_loaded() {
-                    self.start_render_process();
+                if self.load_next_file() {
+                    if self.all_files_loaded() {
+                        self.start_render_process();
+                    } else {
+                        tracing::info!("Batch processing: Next file loaded but dependencies (Artlynk OSD) not ready yet. Queuing render.");
+                        self.pending_batch_render = true;
+                    }
                 } else {
-                    tracing::info!("Batch processing: Next file loaded but dependencies (Artlynk OSD) not ready yet. Queuing render.");
-                    self.pending_batch_render = true;
+                    self.batch_processing = false;
                 }
             }
         }
@@ -513,7 +519,7 @@ impl WalksnailOsdTool {
                 }
             }
         }
-        tracing::info!("Batch processing: No more files to process.");
+        tracing::debug!("Batch processing: No more files to process.");
         false
     }
 }

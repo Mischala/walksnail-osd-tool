@@ -111,62 +111,73 @@ fn parse_msp_payload(hex_string: &str) -> Option<Vec<(u8, u8, u16)>> {
         }
     }
 
-    if data.len() < 9 {
+    if data.len() < 10 {
         return None;
     }
 
-    let num_commands = data[0] as usize;
-    let mut offset = 9;
-    let mut active_glyphs = Vec::new();
-
-    for _ in 0..num_commands {
-        if offset >= data.len() {
-            break;
-        }
-
-        let cmd_payload_len = data[offset] as usize;
-
-        if offset + 6 <= data.len() {
-            let row = data[offset + 3];
-            let col = data[offset + 4];
-            let attribute = data[offset + 5];
-
-            let num_glyphs = cmd_payload_len.saturating_sub(4);
-            offset += 6;
-
-            for i in 0..num_glyphs {
-                if offset >= data.len() {
-                    break;
-                }
-                let glyph_byte = u16::from(data[offset]);
-                // Character index is 10-bit: 2 bits from attribute, 8 bits from glyph_byte
-                let character = ((u16::from(attribute) & 0x03) << 8) | glyph_byte;
-                active_glyphs.push((row, col.saturating_add(i as u8), character));
-                offset += 1;
-            }
-        } else {
-            break;
+    // Find all occurrences of the command prefix b6 03 (MSP DisplayPort Write String)
+    let mut command_offsets = Vec::new();
+    for i in 0..(data.len().saturating_sub(1)) {
+        if data[i] == 0xb6 && data[i + 1] == 0x03 {
+            command_offsets.push(i);
         }
     }
 
-    Some(active_glyphs)
+    if command_offsets.is_empty() {
+        return None;
+    }
+
+    let mut active_glyphs = Vec::new();
+
+    for (i, &start_offset) in command_offsets.iter().enumerate() {
+        // The header is b6 03 ROW COL ATTR (5 bytes)
+        if start_offset + 5 > data.len() {
+            continue;
+        }
+
+        let row = data[start_offset + 2];
+        let col = data[start_offset + 3];
+        let attribute = data[start_offset + 4];
+
+        // Glyph data starts after the 5-byte header
+        let glyph_start = start_offset + 5;
+
+        // Glyph data ends before the next command's length byte
+        // (The length byte is typically one byte before the next b6 03)
+        let glyph_end = if i + 1 < command_offsets.len() {
+            command_offsets[i + 1].saturating_sub(1)
+        } else {
+            data.len()
+        };
+
+        if glyph_start < glyph_end {
+            let num_glyphs = glyph_end - glyph_start;
+            for j in 0..num_glyphs {
+                if glyph_start + j >= data.len() {
+                    break;
+                }
+                let glyph_byte = u16::from(data[glyph_start + j]);
+                let character = ((u16::from(attribute) & 0x03) << 8) | glyph_byte;
+                active_glyphs.push((row, col.saturating_add(j as u8), character));
+            }
+        }
+    }
+
+    if active_glyphs.is_empty() {
+        None
+    } else {
+        Some(active_glyphs)
+    }
 }
 
 #[tracing::instrument(ret, err)]
 #[allow(clippy::cast_precision_loss)]
 pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<Option<OsdFile>, OsdFileError> {
-    let filename = video_path
-        .file_name()
-        .and_then(|f: &std::ffi::OsStr| f.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    if filename.contains("ascent") || filename.contains("avatar") {
-        tracing::info!(
-            "Skipping Artlynk OSD extraction for file {:?} (name contains Ascent/Avatar)",
-            video_path
-        );
-        return Ok(None);
+    // 0. Check if an OSD file already exists
+    let osd_path = video_path.with_extension("osd");
+    if osd_path.exists() {
+        tracing::info!("Found existing OSD file {:?}, skipping scan.", osd_path);
+        return Ok(Some(OsdFile::open(osd_path)?));
     }
 
     tracing::info!("Attempting Artlynk OSD extraction from {:?}", video_path);
@@ -236,12 +247,21 @@ pub fn extract_osd_from_video(ffmpeg_path: &Path, video_path: &Path) -> Result<O
 
     tracing::info!("Extracted {} OSD frames from Artlynk SEI data", frame_count);
 
-    Ok(Some(OsdFile {
-        file_path: video_path.to_path_buf(),
+    let osd_file = OsdFile {
+        file_path: osd_path,
         fc_firmware: FcFirmware::Betaflight,
         frame_count,
         duration,
         version: None,
         frames,
-    }))
+    };
+
+    // Save the extracted data to the .osd file
+    if let Err(e) = osd_file.save() {
+        tracing::error!("Failed to save extracted OSD data to {:?}: {}", osd_file.file_path, e);
+    } else {
+        tracing::info!("Saved extracted OSD data to {:?}", osd_file.file_path);
+    }
+
+    Ok(Some(osd_file))
 }

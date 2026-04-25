@@ -52,3 +52,16 @@ impl Display for FcFirmware {
         )
     }
 }
+
+impl FcFirmware {
+    pub fn as_bytes(&self) -> &'static [u8] {
+        match self {
+            Self::Betaflight => b"BTFL",
+            Self::Inav => b"INAV",
+            Self::ArduPilot => b"ARDU",
+            Self::Kiss => b"KISS",
+            Self::KissUltra => b"ULTR",
+            Self::Unknown => b"UNKN",
+        }
+    }
+}

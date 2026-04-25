@@ -7,7 +7,7 @@
 [![Latest build](https://img.shields.io/github/last-commit/ksielick/walksnail-osd-tool/master?label=latest%20build)](https://nightly.link/ksielick/walksnail-osd-tool/workflows/release.yaml/master/walksnail-osd-tool-all-platforms.zip)
 [![Totally awesome](https://img.shields.io/badge/totally%20awesome-true-blue)](https://github.com/ksielick/walksnail-osd-tool)
 
-Cross-platform tool for rendering the flight controller OSD and SRT data from the Walksnail Avatar, Ascent, and BetaFPV Artlynk HD FPV systems from goggle or VRX recording. Supports both standard `.osd` files and direct extraction from MP4 recordings with embedded OSD data (Artlynk).
+Cross-platform tool for rendering the flight controller OSD and SRT data from the Walksnail Avatar, Ascent, and BetaFPV Artlynk HD FPV systems from goggle or VRX recording. Supports both standard `.osd` files and direct extraction from MP4 recordings with embedded OSD data (Artlynk). Extracted data is cached to `.osd` files for instant reloading.
 
 ![image](https://user-images.githubusercontent.com/880421/228286034-ffd7bf0d-4bb0-4774-9ee1-dd408bd97a88.png)
 
@@ -33,7 +33,7 @@ The tool supports an automatic batch processing mode. When enabled, the applicat
 1. Load and render the currently selected video.
 2. Once the render is complete, it will automatically look for the next `.mp4` file in the same folder.
 3. Automatically load matching OSD/SRT files and start the next render.
-   * **New in v0.5.0:** Artlynk (BetaFPV P1) DVR rendering improvements. Support for sequenced SRT files.
+   * **New in v0.5.2:** Support for Walksnail Firmware 2.0.5 OSD extraction. Automatic OSD data caching to `.osd` files. Expanded SRT debug telemetry (SSNR, GSNR, Gerr, Serr, etc.).
 4. Skip files that have already been processed (ending in `_with_osd.mp4`).
 
 This is ideal for processing entire flight sessions without manual intervention.

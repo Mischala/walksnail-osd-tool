@@ -227,7 +227,8 @@ impl WalksnailOsdTool {
                         let has_time = srt_file.is_none_or(|s| s.has_flight_time);
                         let has_sbat = srt_file.is_none_or(|s| s.has_sky_bat);
                         let has_gbat = srt_file.is_none_or(|s| s.has_ground_bat);
-                        let has_signal = srt_file.is_none_or(|s| s.has_signal);
+                        let has_mcs = srt_file.is_some_and(|s| s.has_mcs);
+                        let has_signal = srt_file.is_none_or(|s| s.has_signal && !s.has_mcs);
                         let has_latency = srt_file.is_none_or(|s| s.has_latency);
                         let has_bitrate = srt_file.is_none_or(|s| s.has_bitrate);
                         let has_distance = srt_file.is_none_or(|s| s.has_distance);
@@ -235,8 +236,14 @@ impl WalksnailOsdTool {
                         let has_hz = srt_file.is_some_and(|s| s.has_hz);
                         let has_sp = srt_file.is_some_and(|s| s.has_sp);
                         let has_gp = srt_file.is_some_and(|s| s.has_gp);
-                        let has_air_temp = srt_file.is_some_and(|s| s.has_air_temp);
-                        let has_gnd_temp = srt_file.is_some_and(|s| s.has_gnd_temp);
+                        let has_air_temp = srt_file.is_some_and(|s| s.has_air_temp && !s.has_mcs);
+                        let has_gnd_temp = srt_file.is_some_and(|s| s.has_gnd_temp && !s.has_mcs);
+                        let has_ssnr = srt_file.is_some_and(|s| s.has_ssnr);
+                        let has_gsnr = srt_file.is_some_and(|s| s.has_gsnr);
+                        let has_stemp = srt_file.is_some_and(|s| s.has_stemp);
+                        let has_gtemp = srt_file.is_some_and(|s| s.has_gtemp);
+                        let has_gerr = srt_file.is_some_and(|s| s.has_gerr);
+                        let has_serr = srt_file.is_some_and(|s| s.has_serr);
                         let has_sty_mode = srt_file.is_some_and(|s| s.has_sty_mode);
 
                         ui.horizontal_wrapped(|ui| {
@@ -251,6 +258,9 @@ impl WalksnailOsdTool {
                             }
                             if has_signal {
                                 changed |= ui.checkbox(&mut options.show_signal, "Signal").changed();
+                            }
+                            if has_mcs {
+                                changed |= ui.checkbox(&mut options.show_mcs, "MCS").changed();
                             }
                             if has_latency {
                                 changed |= ui.checkbox(&mut options.show_latency, "Latency").changed();
@@ -278,6 +288,24 @@ impl WalksnailOsdTool {
                             }
                             if has_gnd_temp {
                                 changed |= ui.checkbox(&mut options.show_gnd_temp, "GndTemp").changed();
+                            }
+                            if has_ssnr {
+                                changed |= ui.checkbox(&mut options.show_ssnr, "SSNR").changed();
+                            }
+                            if has_gsnr {
+                                changed |= ui.checkbox(&mut options.show_gsnr, "GSNR").changed();
+                            }
+                            if has_stemp {
+                                changed |= ui.checkbox(&mut options.show_stemp, "Stemp").changed();
+                            }
+                            if has_gtemp {
+                                changed |= ui.checkbox(&mut options.show_gtemp, "Gtemp").changed();
+                            }
+                            if has_serr {
+                                changed |= ui.checkbox(&mut options.show_serr, "Serr").changed();
+                            }
+                            if has_gerr {
+                                changed |= ui.checkbox(&mut options.show_gerr, "Gerr").changed();
                             }
                             if has_sty_mode {
                                 changed |= ui.checkbox(&mut options.show_sty_mode, "STYMode").changed();

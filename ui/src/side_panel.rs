@@ -337,6 +337,7 @@ impl WalksnailOsdTool {
                                                 if ui.selectable_label(selected, name).clicked() {
                                                     if let Ok(new_font) = backend::font::FontFile::open(path) {
                                                         self.font_file = Some(new_font);
+                                                        self.font_manually_selected = true;
                                                         self.auto_center_horizontal();
                                                         self.update_osd_preview(ctx);
                                                         self.auto_resize_window(ctx);
